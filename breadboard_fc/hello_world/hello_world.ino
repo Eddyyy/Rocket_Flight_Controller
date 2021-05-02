@@ -1,12 +1,11 @@
 /*
-    @Purpose: testing the spi control of the power supply
+    @Purpose: testing basic mcu
     @Author: Edward Thomson
 */
 
 #include <inttypes.h>
 
 elapsedMillis printTimer;
-elapsedMillis blinkTimer;
 
 #define LED_PIN 13
 
