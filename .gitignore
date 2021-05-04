@@ -53,3 +53,4 @@ dkms.conf
 
 # Text editor files
 .*.swp
+.vscode
