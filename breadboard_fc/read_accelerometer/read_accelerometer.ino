@@ -39,6 +39,9 @@ void setup() {
     // Initialize device for active mode read of acclerometer, gyroscope, and
     // temperature
     myIMU.initMPU9250();
+    
+    // Get magnetometer calibration from AK8963 ROM
+    myIMU.initAK8963(myIMU.factoryMagCalibration);
 
     // Get sensor resolutions, only need to do this once
     myIMU.getAres();
@@ -100,8 +103,7 @@ void loop() {
     if (accelReadTimer >= 250) {
         digitalWrite(LED_PIN, !digitalRead(LED_PIN));  // toggle led
         accelReadTimer = 0;
-        Serial.println("AccelX, AccelY, AccelZ, GyroRateX, GyroRateY, GyroRateZ, MagX, MagY, MagZ");
-/*
+        Serial.println("AccelX,AccelY,AccelZ,GyroRateX,GyroRateY,GyroRateZ,MagX,MagY,MagZ");
         Serial.print((int)1000 * myIMU.ax );
         Serial.print(",");
         Serial.print((int)1000 * myIMU.ay );
@@ -114,7 +116,6 @@ void loop() {
         Serial.print(",");
         Serial.print(myIMU.gz, 3);
         Serial.print(",");
-        */
         Serial.print(myIMU.mx);
         Serial.print(",");
         Serial.print(myIMU.my);
