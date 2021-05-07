@@ -14,6 +14,7 @@ elapsedMillis accelReadTimer;
 #define LED_PIN 13
 #define I2Cclock 400000
 #define I2Cport Wire
+#define MPU9250_ADDRESS MPU9250_ADDRESS_AD0
 
 MPU9250 myIMU(MPU9250_ADDRESS, I2Cport, I2Cclock);
 
@@ -28,9 +29,13 @@ void setup() {
     pinMode(LED_PIN, OUTPUT);
 
     Serial.println(F("MPU9250 is online..."));
+
+    myIMU.MPU9250SelfTest(myIMU.selfTest);
+
     // Calibrate gyro and accelerometers, load biases in bias registers
     myIMU.calibrateMPU9250(myIMU.gyroBias, myIMU.accelBias);
 
+    
     // Initialize device for active mode read of acclerometer, gyroscope, and
     // temperature
     myIMU.initMPU9250();
@@ -51,10 +56,7 @@ void setup() {
 
 
 void loop() {
-    if (accelReadTimer >= 250) {
-        accelReadTimer = 0;
-        Serial.println("AccelX, AccelY, AccelZ, GyroRateX, GyroRateY, GyroRateZ, MagX, MagY, MagZ")
-
+    if (myIMU.readByte(MPU9250_ADDRESS, INT_STATUS) & 0x01) {
         myIMU.readAccelData(myIMU.accelCount);  // Read the x/y/z adc values
         // Convert accelerometer readings into g's. This depends on scale being set
         myIMU.ax = (float)myIMU.accelCount[0] * myIMU.aRes; // - myIMU.accelBias[0];
@@ -73,12 +75,12 @@ void loop() {
         // corrections
         // Get actual magnetometer value, this depends on scale being set
         myIMU.mx = (float)myIMU.magCount[0] * myIMU.mRes
-                * myIMU.factoryMagCalibration[0] - myIMU.magBias[0];
+               * myIMU.factoryMagCalibration[0] - myIMU.magBias[0];
         myIMU.my = (float)myIMU.magCount[1] * myIMU.mRes
-                * myIMU.factoryMagCalibration[1] - myIMU.magBias[1];
+               * myIMU.factoryMagCalibration[1] - myIMU.magBias[1];
         myIMU.mz = (float)myIMU.magCount[2] * myIMU.mRes
-                * myIMU.factoryMagCalibration[2] - myIMU.magBias[2];
-        }
+               * myIMU.factoryMagCalibration[2] - myIMU.magBias[2];
+    }
 
         // Must be called before updating quaternions!
         myIMU.updateTime();
@@ -95,26 +97,30 @@ void loop() {
                                 myIMU.gy * DEG_TO_RAD, myIMU.gz * DEG_TO_RAD, myIMU.my,
                                 myIMU.mx, myIMU.mz, myIMU.deltat);
 
-        Serial.print((int)1000 * myIMU.ax)
-        Serial.print((int)1000 * myIMU.ay)
-        Serial.print((int)1000 * myIMU.az)
-        Serial.print(" mg")
-
-        Serial.print(myIMU.gx, 2)
-        Serial.print(myIMU.gy, 2)
-        Serial.print(myIMU.gz, 2)
-        Serial.print(" deg/s")
-
-        Serial.print((int)myIMU.mx)
-        Serial.print((int)myIMU.my)
-        Serial.print((int)myIMU.mz)
-        Serial.print(" mG")
-
-        Serial.println()
-        /*not sure what this is printing 
-        Serial.print("q0 = ");  Serial.print(*getQ());
-        Serial.print(" qx = "); Serial.print(*(getQ() + 1));
-        Serial.print(" qy = "); Serial.print(*(getQ() + 2));
-        Serial.print(" qz = "); Serial.println(*(getQ() + 3));
+    if (accelReadTimer >= 250) {
+        digitalWrite(LED_PIN, !digitalRead(LED_PIN));  // toggle led
+        accelReadTimer = 0;
+        Serial.println("AccelX, AccelY, AccelZ, GyroRateX, GyroRateY, GyroRateZ, MagX, MagY, MagZ");
+/*
+        Serial.print((int)1000 * myIMU.ax );
+        Serial.print(",");
+        Serial.print((int)1000 * myIMU.ay );
+        Serial.print(",");
+        Serial.print((int)1000 * myIMU.az );
+        Serial.print(",");
+        Serial.print(myIMU.gx, 3);
+        Serial.print(",");
+        Serial.print(myIMU.gy, 3);
+        Serial.print(",");
+        Serial.print(myIMU.gz, 3);
+        Serial.print(",");
         */
+        Serial.print(myIMU.mx);
+        Serial.print(",");
+        Serial.print(myIMU.my);
+        Serial.print(",");
+        Serial.print(myIMU.mz);
+
+        Serial.println();
+    }
 }
