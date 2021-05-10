@@ -16,8 +16,8 @@ void setup()
 void loop()
 {
   // Dispatch incoming characters
-  while (Serial2.available)
-    Serial.print(Serial2.read);
+  while (Serial2.available())
+    Serial.print(Serial2.readStringUntil("\n"));
 }
 
 //speed
