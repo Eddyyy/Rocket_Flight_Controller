@@ -40,8 +40,8 @@ elapsedMillis baroReadTimer;
 #define BMP280_REG_DATA      0xF7
 
 // Internal calibration registers
-int16_t _t2, _t3, _p2, _p3, _p4, _p5, _p6, _p7, _p8, _p9;
-uint16_t _t1, _p1;
+int16_t t2, t3, p2, p3, p4, p5, p6, p7, p8, p9;
+uint16_t t1, p1;
 
 // Temperature values
 int32_t t_fine;
@@ -57,22 +57,24 @@ void collect_calib_params() {
     Wire.beginTransmission(BMP280_I2C_ADDR);
     Wire.write(BMP280_REG_CALIB);
     Wire.endTransmission();
-    for (i=0; i<=sizeof(buf); i++) {
+    Wire.requestFrom(BMP280_I2C_ADDR, sizeof(buf));
+    for (int i=0; i<int(sizeof(buf)); i++) {
         buf[i] = Wire.read();
     }
 
-    _t1 = ((int16_t)buf[1] << 8) | buf[0];
-    _t2 = ((int16_t)buf[3] << 8) | buf[2];
-    _t3 = ((int16_t)buf[5] << 8) | buf[4];
-    _p1 = ((int16_t)buf[7] << 8) | buf[6];
-    _p2 = ((int16_t)buf[9] << 8) | buf[8];
-    _p3 = ((int16_t)buf[11] << 8) | buf[10];
-    _p4 = ((int16_t)buf[13] << 8) | buf[12];
-    _p5 = ((int16_t)buf[15] << 8) | buf[14];
-    _p6 = ((int16_t)buf[17] << 8) | buf[16];
-    _p7 = ((int16_t)buf[19] << 8) | buf[18];
-    _p8 = ((int16_t)buf[21] << 8) | buf[20];
-    _p9 = ((int16_t)buf[23] << 8) | buf[22];
+    t1 = ((int16_t)buf[1] << 8) | buf[0];
+    t2 = ((int16_t)buf[3] << 8) | buf[2];
+    t3 = ((int16_t)buf[5] << 8) | buf[4];
+
+    p1 = ((int16_t)buf[7] << 8) | buf[6];
+    p2 = ((int16_t)buf[9] << 8) | buf[8];
+    p3 = ((int16_t)buf[11] << 8) | buf[10];
+    p4 = ((int16_t)buf[13] << 8) | buf[12];
+    p5 = ((int16_t)buf[15] << 8) | buf[14];
+    p6 = ((int16_t)buf[17] << 8) | buf[16];
+    p7 = ((int16_t)buf[19] << 8) | buf[18];
+    p8 = ((int16_t)buf[21] << 8) | buf[20];
+    p9 = ((int16_t)buf[23] << 8) | buf[22];
 
 
 }
@@ -86,8 +88,8 @@ float convert_temp(int32_t adc_T) {
 
   adc_T >>= 4;
 
-  var1 = ((((adc_T >> 3) - ((int32_t)_t1 << 1))) *
-          ((int32_t)_t2)) >>
+  var1 = ((((adc_T >> 3) - ((int32_t)t1 << 1))) *
+          ((int32_t)t2)) >>
          11;
 
   var2 = (((((adc_T >> 4) - ((int32_t)t1)) *
@@ -104,34 +106,32 @@ float convert_temp(int32_t adc_T) {
 
 /*!
  * Reads the barometric pressure from the device.
+ * Temperature must be read  and calculated before reading preasure
  * @return Barometric pressure in Pa.
  */
 float convert_preasure(int32_t adc_P) {
   int64_t var1, var2, p;
 
-  // Must be done first to get the t_fine variable set up
-  readTemperature();
-
   adc_P >>= 4;
 
   var1 = ((int64_t)t_fine) - 128000;
-  var2 = var1 * var1 * (int64_t)_bmp280_calib.dig_P6;
-  var2 = var2 + ((var1 * (int64_t)_bmp280_calib.dig_P5) << 17);
-  var2 = var2 + (((int64_t)_bmp280_calib.dig_P4) << 35);
-  var1 = ((var1 * var1 * (int64_t)_bmp280_calib.dig_P3) >> 8) +
-         ((var1 * (int64_t)_bmp280_calib.dig_P2) << 12);
+  var2 = var1 * var1 * (int64_t)p6;
+  var2 = var2 + ((var1 * (int64_t)p5) << 17);
+  var2 = var2 + (((int64_t)p4) << 35);
+  var1 = ((var1 * var1 * (int64_t)p3) >> 8) +
+         ((var1 * (int64_t)p2) << 12);
   var1 =
-      (((((int64_t)1) << 47) + var1)) * ((int64_t)_bmp280_calib.dig_P1) >> 33;
+      (((((int64_t)1) << 47) + var1)) * ((int64_t)p1) >> 33;
 
   if (var1 == 0) {
     return 0; // avoid exception caused by division by zero
   }
   p = 1048576 - adc_P;
   p = (((p << 31) - var2) * 3125) / var1;
-  var1 = (((int64_t)_bmp280_calib.dig_P9) * (p >> 13) * (p >> 13)) >> 25;
-  var2 = (((int64_t)_bmp280_calib.dig_P8) * p) >> 19;
+  var1 = (((int64_t)p9) * (p >> 13) * (p >> 13)) >> 25;
+  var2 = (((int64_t)p8) * p) >> 19;
 
-  p = ((p + var1 + var2) >> 8) + (((int64_t)_bmp280_calib.dig_P7) << 4);
+  p = ((p + var1 + var2) >> 8) + (((int64_t)p7) << 4);
   return (float)p / 256;
 }
 
@@ -171,18 +171,21 @@ void loop() {
         int32_t preasureRaw = Wire.read();
         preasureRaw <<= 8;
         preasureRaw |= Wire.read();
-        Wire.read();
+        preasureRaw <<= 8;
+        preasureRaw |= Wire.read();
 
         // Temperature
         int32_t tempRaw = Wire.read();
         tempRaw <<= 8;
         tempRaw |= Wire.read();
-        Wire.read();
+        tempRaw <<= 8;
+        tempRaw |= Wire.read();
         float temp = convert_temp(tempRaw);
+        float preasure = convert_preasure(preasureRaw);
 
-        Serial.print(preasureRaw);
+        Serial.print(preasure);
         Serial.print("\t");
-        Serial.print(tempRaw);
+        Serial.print(temp);
         Serial.println();
 
     }
