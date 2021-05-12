@@ -1,0 +1,3 @@
+[submodule "breadboard_fc/chibios_test/ChRt_library"]
+	path = breadboard_fc/chibios_test/ChRt_library
+	url = https://github.com/greiman/ChRt.git
