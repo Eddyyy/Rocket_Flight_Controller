@@ -2,6 +2,7 @@
 
 #include "MPU9250.h"
 #include "quaternionFilters.h"
+#include "TinyGPS++.h"
 #include "ChRt.h"
 
 #define I2Cclock 400000
@@ -10,32 +11,86 @@
 
 typedef struct imuReadings {
     float ax,ay,az,gx,gy,gz,mx,my,mz;
+    bool isAvailable;
 } IMU_t;
 
+typedef struct gpsReadings {
+    float lat,lng,hdop,alt,speed,course;
+    uint32_t time;
+    bool isSpeedUpd, isCourseUpd;
+    bool isAvailable;
+} GPS_t;
+
 volatile IMU_t IMU;
+volatile GPS_t GPS;
 
 MPU9250 myIMU(MPU9250_ADDRESS, I2Cport, I2Cclock);
+TinyGPSPlus myGPS;
+
 
 MUTEX_DECL(imuMutex);
+MUTEX_DECL(gpsMutex);
 
 static THD_WORKING_AREA(waThd1, 64);     // Printing thread
-static THD_WORKING_AREA(waThd2, 128);    // IMU readings thread
 
 static THD_FUNCTION(printThd, arg) {
     (void)arg;
     float ax,ay,az,gx,gy,gz,mx,my,mz;
+    float lat,lng,hdop,alt,speed,course;
+    uint32_t gpsTime;
+    bool isSpeedUpd, isCourseUpd;
     while(true) {
-        Serial.println("AccelX,AccelY,AccelZ,GyroRateX,GyroRateY,GyroRateZ,MagX,MagY,MagZ");
-        chMtxLock(&imuMutex);
-        ax = IMU.ax; ay = IMU.ay; az = IMU.az;
-        gx = IMU.gx; gy = IMU.gy; gz = IMU.gz;
-        mx = IMU.mx; my = IMU.my; mz = IMU.mz;
-        chMtxUnlock(&imuMutex);
-        Serial.printf("%f,%f,%f,%f,%f,%f,%f,%f,%f",ax,ay,az,gx,gy,gz,mx,my,mz);
-        Serial.println();
-        chThdSleepMilliseconds(1000);
+        if (IMU.isAvailable) {
+            chMtxLock(&imuMutex);
+            ax = (int)1000 * IMU.ax; ay = (int)1000 * IMU.ay; az = (int)1000 * IMU.az;
+            gx = IMU.gx; gy = IMU.gy; gz = IMU.gz;
+            mx = IMU.mx; my = IMU.my; mz = IMU.mz;
+            IMU.isAvailable = false;
+            chMtxUnlock(&imuMutex);
+            Serial.println("AccelX,AccelY,AccelZ,GyroRateX,GyroRateY,GyroRateZ,MagX,MagY,MagZ");
+            Serial.print(ax); Serial.print(",");
+            Serial.print(ay); Serial.print(",");
+            Serial.print(az); Serial.print(",");
+            Serial.print(gx, 3); Serial.print(",");
+            Serial.print(gy, 3); Serial.print(",");
+            Serial.print(gz, 3); Serial.print(",");
+            Serial.print(mx); Serial.print(",");
+            Serial.print(my); Serial.print(",");
+            Serial.print(mz);
+            Serial.println();
+            Serial.println(GPS.isAvailable);
+        }
+        if (GPS.isAvailable) {
+            chMtxLock(&gpsMutex);
+            lat = GPS.lat; lng = GPS.lng; hdop = GPS.hdop;
+            alt = GPS.alt; speed = GPS.speed; course = GPS.course;
+            gpsTime = GPS.time; isSpeedUpd = GPS.isSpeedUpd;
+            isCourseUpd = GPS.isCourseUpd;
+            GPS.isAvailable = false;
+            chMtxUnlock(&gpsMutex);
+            Serial.println("Time,Lat,Long,HDOP,Alt,Speed,Course");
+            Serial.print(gpsTime); Serial.print(",");
+            Serial.print(lat); Serial.print(",");
+            Serial.print(lng); Serial.print(",");
+            Serial.print(hdop); Serial.print(",");
+            Serial.print(alt); Serial.print(",");
+            if (isSpeedUpd) {
+                Serial.print(speed); Serial.print(",");
+            } else {
+                Serial.print("NaN"); Serial.print(",");
+            }
+            if (isCourseUpd) {
+                Serial.print(course); Serial.print(",");
+            } else {
+                Serial.print("NaN"); Serial.print(",");
+            }
+            Serial.println();
+        }
+        chThdSleepMilliseconds(700);
     }
 }
+
+static THD_WORKING_AREA(waThd2, 128);    // IMU readings thread
 
 static THD_FUNCTION(readIMU, arg) {
     (void)arg;
@@ -99,31 +154,83 @@ static THD_FUNCTION(readIMU, arg) {
             IMU.ax = myIMU.ax; IMU.ay = myIMU.ay; IMU.az = myIMU.az;
             IMU.gx = myIMU.gx; IMU.gy = myIMU.gy; IMU.gz = myIMU.gz;
             IMU.mx = myIMU.mx; IMU.my = myIMU.my; IMU.mz = myIMU.mz;
+            IMU.isAvailable = true;
             chMtxUnlock(&imuMutex);
             // Exit protected region
 
-            chThdSleepMilliseconds(50);
+            chThdSleepMilliseconds(127);
+    }
+}
+
+static THD_WORKING_AREA(waThd3, 128);
+
+static THD_FUNCTION(readGPS, arg) {
+    (void)arg;
+    while (true) {
+        while (Serial2.available()) {
+            myGPS.encode(Serial2.read());
+        }
+        GPS_t gpsLocal;
+        gpsLocal.lat = 0; gpsLocal.lng = 0; gpsLocal.alt = 0; gpsLocal.hdop = 0;
+        gpsLocal.speed = 0; gpsLocal.time = 0; gpsLocal.course = 0;
+        gpsLocal.isAltUpd = false; gpsLocal.isHdopUpd = false;
+        gpsLocal.isSpeedUpd = false; gpsLocal.isCourseUpd = false; gpsLocal.isAvailable = false;
+        if (myGPS.location.isUpdated()) {
+            gpsLocal.lat = myGPS.location.lat();
+            gpsLocal.lng = myGPS.location.lng();
+            if (myGPS.altitude.isUpdated()) {
+                gpsLocal.isAltUpd = true;
+                gpsLocal.alt = myGPS.altitude.meters();
+            }
+            if (myGPS.hdop.isUpdated())
+            gpsLocal.time = myGPS.time.value();
+            if (myGPS.speed.isUpdated()) {
+                gpsLocal.isSpeedUpd = true;
+                gpsLocal.speed = myGPS.speed.mps();
+            }
+            if (myGPS.course.isUpdated()) {
+                gpsLocal.isCourseUpd = true;
+                gpsLocal.course = myGPS.course.deg();
+            }
+            digitalWrite(13, HIGH);
+
+            chMtxLock(&gpsMutex);
+            GPS.lat = gpsLocal.lat; GPS.lng = gpsLocal.lng; GPS.hdop = gpsLocal.hdop;
+            GPS.alt = gpsLocal.alt; GPS.time = gpsLocal.time;
+            GPS.speed = gpsLocal.speed; GPS.course = gpsLocal.course; 
+            GPS.isSpeedUpd = gpsLocal.isSpeedUpd; GPS.isCourseUpd = gpsLocal.isCourseUpd;
+            GPS.isAvailable = true;
+            chMtxUnlock(&gpsMutex);
+            chThdSleepMilliseconds(100);
+            digitalWrite(13, LOW);
+        }
+        chThdSleepMilliseconds(203);
+
     }
 }
 
 void chSetup() {
-    // Schedule thread 1.
-    chThdCreateStatic(waThd1, sizeof(waThd1), NORMALPRIO, printThd, NULL);
+    // Schedule IMU read thread.
+    chThdCreateStatic(waThd2, sizeof(waThd2), NORMALPRIO+4, readIMU, NULL);
 
-    // Schedule thread 2.
-    chThdCreateStatic(waThd2, sizeof(waThd2), NORMALPRIO+1, readIMU, NULL);
+    // Schedule GPS read thread.
+    chThdCreateStatic(waThd3, sizeof(waThd3), NORMALPRIO+3, readGPS, NULL);
+
+    // Schedule print thread.
+    chThdCreateStatic(waThd1, sizeof(waThd1), NORMALPRIO+1, printThd, NULL);
 }
 
 void setup() {
     Serial.begin(115200);
+    Serial2.begin(9600);
+    Wire.begin();
     // Wait for USB Serial.
     while (!Serial) {
     ;
     }
-
     chBegin(chSetup);
     // chBegin() resets stacks and should never return.
-    while (true) {}    
+    while (true) {}  
 }
 
 void loop() {}
