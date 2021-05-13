@@ -17,7 +17,7 @@ typedef struct imuReadings {
 typedef struct gpsReadings {
     float lat,lng,hdop,alt,speed,course;
     uint32_t time;
-    bool isSpeedUpd, isCourseUpd;
+    bool isSpeedUpd, isCourseUpd, isTimeUpd, isAltUpd, isHdopUpd;
     bool isAvailable;
 } GPS_t;
 
@@ -38,7 +38,7 @@ static THD_FUNCTION(printThd, arg) {
     float ax,ay,az,gx,gy,gz,mx,my,mz;
     float lat,lng,hdop,alt,speed,course;
     uint32_t gpsTime;
-    bool isSpeedUpd, isCourseUpd;
+    bool isSpeedUpd, isCourseUpd, isTimeUpd, isAltUpd, isHdopUpd;
     while(true) {
         if (IMU.isAvailable) {
             chMtxLock(&imuMutex);
@@ -65,15 +65,28 @@ static THD_FUNCTION(printThd, arg) {
             lat = GPS.lat; lng = GPS.lng; hdop = GPS.hdop;
             alt = GPS.alt; speed = GPS.speed; course = GPS.course;
             gpsTime = GPS.time; isSpeedUpd = GPS.isSpeedUpd;
-            isCourseUpd = GPS.isCourseUpd;
+            isCourseUpd = GPS.isCourseUpd; isTimeUpd = GPS.isTimeUpd;
+            isAltUpd = GPS.isAltUpd; isHdopUpd = GPS.issHdopUpd;
             GPS.isAvailable = false;
             chMtxUnlock(&gpsMutex);
             Serial.println("Time,Lat,Long,HDOP,Alt,Speed,Course");
-            Serial.print(gpsTime); Serial.print(",");
+            if (isTimeUpd) {
+                Serial.print(gpsTime); Serial.print(",");
+            } else {
+                Serial.print("NaN"); Serial.print(",");
+            }
             Serial.print(lat); Serial.print(",");
             Serial.print(lng); Serial.print(",");
-            Serial.print(hdop); Serial.print(",");
-            Serial.print(alt); Serial.print(",");
+            if (isHdopUpd) {
+                Serial.print(hdop); Serial.print(",");
+            } else {
+                Serial.print("NaN"); Serial.print(",");
+            }
+            if (isAltUpd) {
+                Serial.print(alt); Serial.print(",");
+            } else {
+                Serial.print("NaN"); Serial.print(",");
+            }
             if (isSpeedUpd) {
                 Serial.print(speed); Serial.print(",");
             } else {
@@ -173,7 +186,7 @@ static THD_FUNCTION(readGPS, arg) {
         GPS_t gpsLocal;
         gpsLocal.lat = 0; gpsLocal.lng = 0; gpsLocal.alt = 0; gpsLocal.hdop = 0;
         gpsLocal.speed = 0; gpsLocal.time = 0; gpsLocal.course = 0;
-        gpsLocal.isAltUpd = false; gpsLocal.isHdopUpd = false;
+        gpsLocal.isAltUpd = false; gpsLocal.isHdopUpd = false; gpsLocal.isTimeUpd = true;
         gpsLocal.isSpeedUpd = false; gpsLocal.isCourseUpd = false; gpsLocal.isAvailable = false;
         if (myGPS.location.isUpdated()) {
             gpsLocal.lat = myGPS.location.lat();
@@ -182,8 +195,14 @@ static THD_FUNCTION(readGPS, arg) {
                 gpsLocal.isAltUpd = true;
                 gpsLocal.alt = myGPS.altitude.meters();
             }
-            if (myGPS.hdop.isUpdated())
-            gpsLocal.time = myGPS.time.value();
+            if (myGPS.hdop.isUpdated()) {
+                gpsLocal.isHdopUpd = true;
+                gpsLocal.hdop = myGPS.hdop.hdop();
+            }
+            if (myGPS.time.isUpdated()) {
+                gpsLocal.isTimeUpd = true;
+                gpsLocal.time = myGPS.time.value();
+            }
             if (myGPS.speed.isUpdated()) {
                 gpsLocal.isSpeedUpd = true;
                 gpsLocal.speed = myGPS.speed.mps();
@@ -192,8 +211,6 @@ static THD_FUNCTION(readGPS, arg) {
                 gpsLocal.isCourseUpd = true;
                 gpsLocal.course = myGPS.course.deg();
             }
-            digitalWrite(13, HIGH);
-
             chMtxLock(&gpsMutex);
             GPS.lat = gpsLocal.lat; GPS.lng = gpsLocal.lng; GPS.hdop = gpsLocal.hdop;
             GPS.alt = gpsLocal.alt; GPS.time = gpsLocal.time;
@@ -202,7 +219,6 @@ static THD_FUNCTION(readGPS, arg) {
             GPS.isAvailable = true;
             chMtxUnlock(&gpsMutex);
             chThdSleepMilliseconds(100);
-            digitalWrite(13, LOW);
         }
         chThdSleepMilliseconds(203);
 
