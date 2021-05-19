@@ -1,4 +1,6 @@
 #include <Wire.h>
+#include <SD.h>
+#include <SPI.h>
 
 #include "MPU9250.h"
 #include "quaternionFilters.h"
@@ -9,7 +11,10 @@
 #define I2Cclock 400000
 #define I2Cport Wire
 #define MPU9250_ADDRESS MPU9250_ADDRESS_AD0
+#define BUFFER_SIZE 10
+#define CS_PIN 10
 
+File myFile;
 typedef struct imuReadings {
     float ax,ay,az,gx,gy,gz,mx,my,mz;
     bool isAvailable;
@@ -47,29 +52,31 @@ static THD_FUNCTION(printThd, arg) {
     float lat,lng,hdop,alt,speed,course;
     float temp, pressure;
     uint32_t gpsTime;
+    uint32_t buf[BUFFER_SIZE];
     bool isSpeedUpd, isCourseUpd, isTimeUpd, isAltUpd, isHdopUpd;
     while(true) {
-        if (IMU.isAvailable) {
+        for (int i = 0; i < BUFFER_SIZE; i++) {
+            buf[i] = 0;
+        }
+        if (baro.isAvailable) {
+            chMtxLock(&baroMutex);
+            temp = baro.temp ; pressure = baro.pressure;
+            baro.isAvailable = false;
+            chMtxUnlock(&baroMutex);
+            buf[0] = 2;
+            buf[1] = temp; buf[2] = pressure;
+        } else if (IMU.isAvailable) {
             chMtxLock(&imuMutex);
             ax = (int)1000 * IMU.ax; ay = (int)1000 * IMU.ay; az = (int)1000 * IMU.az;
             gx = IMU.gx; gy = IMU.gy; gz = IMU.gz;
             mx = IMU.mx; my = IMU.my; mz = IMU.mz;
             IMU.isAvailable = false;
             chMtxUnlock(&imuMutex);
-            Serial.println("AccelX,AccelY,AccelZ,GyroRateX,GyroRateY,GyroRateZ,MagX,MagY,MagZ");
-            Serial.print(ax); Serial.print(",");
-            Serial.print(ay); Serial.print(",");
-            Serial.print(az); Serial.print(",");
-            Serial.print(gx, 3); Serial.print(",");
-            Serial.print(gy, 3); Serial.print(",");
-            Serial.print(gz, 3); Serial.print(",");
-            Serial.print(mx); Serial.print(",");
-            Serial.print(my); Serial.print(",");
-            Serial.print(mz);
-            Serial.println();
-            Serial.println(GPS.isAvailable);
-        }
-        if (GPS.isAvailable) {
+            buf[0] = 0;
+            buf[1] = ax; buf[2] = ay; buf[3] = az;
+            buf[4] = gx; buf[5] = gy; buf[5] = gz;
+            buf[6] = mx; buf[7] = my; buf[9] = mz;
+        } else if (GPS.isAvailable) {
             chMtxLock(&gpsMutex);
             lat = GPS.lat; lng = GPS.lng; hdop = GPS.hdop;
             alt = GPS.alt; speed = GPS.speed; course = GPS.course;
@@ -78,47 +85,60 @@ static THD_FUNCTION(printThd, arg) {
             isAltUpd = GPS.isAltUpd; isHdopUpd = GPS.isHdopUpd;
             GPS.isAvailable = false;
             chMtxUnlock(&gpsMutex);
-            Serial.println("Time,Lat,Long,HDOP,Alt,Speed,Course");
+            buf[0] = 1;
             if (isTimeUpd) {
-                Serial.print(gpsTime); Serial.print(",");
-            } else {
-                Serial.print("NaN"); Serial.print(",");
+                buf[1] = gpsTime;
             }
-            Serial.print(lat); Serial.print(",");
-            Serial.print(lng); Serial.print(",");
+            buf[2] = lat; buf[3] = lng;
             if (isHdopUpd) {
-                Serial.print(hdop); Serial.print(",");
-            } else {
-                Serial.print("NaN"); Serial.print(",");
+                buf[4] = hdop;
             }
             if (isAltUpd) {
-                Serial.print(alt); Serial.print(",");
-            } else {
-                Serial.print("NaN"); Serial.print(",");
+                buf[5] = alt;
             }
             if (isSpeedUpd) {
-                Serial.print(speed); Serial.print(",");
-            } else {
-                Serial.print("NaN"); Serial.print(",");
+                buf[6] = speed;
             }
             if (isCourseUpd) {
-                Serial.print(course); Serial.print(",");
-            } else {
-                Serial.print("NaN"); Serial.print(",");
+                buf[7] = course;
             }
-            Serial.println();
         }
-
-        if (baro.isAvailable) {
-            chMtxLock(&baroMutex);
-            temp = baro.temp ; pressure = baro.pressure;
-            baro.isAvailable = false;
-            chMtxUnlock(&baroMutex);
-            Serial.println("Temp,Pressure");
-            Serial.print(temp); Serial.print(",");
-            Serial.print(pressure); Serial.println();
+        switch(buf[0]) {
+            case 0:
+                myFile = SD.open("data.txt", FILE_WRITE);
+                Serial.println("IMU");
+                myFile.println("IMU");
+                for (int i = 1; i < 10; i++) {
+                    Serial.print(buf[i]);
+                    myFile.print(buf[i]);
+                }
+                Serial.println();
+                myFile.close();
+                break;
+            case 1:
+                myFile = SD.open("data.txt", FILE_WRITE);
+                Serial.println("GPS");
+                myFile.println("GPS");
+                for (int i = 1; i < 8; i++) {
+                    Serial.print(buf[i]);
+                    myFile.print(buf[i]);
+                }
+                Serial.println();
+                myFile.close();
+                break;
+            case 2:
+                myFile = SD.open("data.txt", FILE_WRITE);
+                Serial.println("Baro");
+                myFile.println("Baro");
+                for (int i = 1; i < 3; i++) {
+                    Serial.print(buf[i]);
+                    myFile.print(buf[i]);
+                }
+                Serial.println();
+                myFile.close();
+                break;
         }
-        chThdSleepMilliseconds(700);
+        chThdSleepMilliseconds(150);
     }
 }
 
@@ -190,7 +210,7 @@ static THD_FUNCTION(readIMU, arg) {
             chMtxUnlock(&imuMutex);
             // Exit protected region
 
-            chThdSleepMilliseconds(127);
+            chThdSleepMilliseconds(277);
     }
 }
 
@@ -238,7 +258,7 @@ static THD_FUNCTION(readGPS, arg) {
             GPS.isAvailable = true;
             chMtxUnlock(&gpsMutex);
         }
-        chThdSleepMilliseconds(203);
+        chThdSleepMilliseconds(278);
 
     }
 }
@@ -286,13 +306,13 @@ static THD_FUNCTION(readBaro, arg) {
 
 void chSetup() {
     // Schedule IMU read thread.
-    chThdCreateStatic(waThd2, sizeof(waThd2), NORMALPRIO+4, readIMU, NULL);
+    chThdCreateStatic(waThd2, sizeof(waThd2), NORMALPRIO+2, readIMU, NULL);
 
     // Schedule GPS read thread.
     chThdCreateStatic(waThd3, sizeof(waThd3), NORMALPRIO+3, readGPS, NULL);
 
     // Schedule Baro read thread.
-    chThdCreateStatic(waThd4, sizeof(waThd4), NORMALPRIO+2, readBaro, NULL);
+    chThdCreateStatic(waThd4, sizeof(waThd4), NORMALPRIO+4, readBaro, NULL);
 
     // Schedule print thread.
     chThdCreateStatic(waThd1, sizeof(waThd1), NORMALPRIO+1, printThd, NULL);
@@ -307,6 +327,7 @@ void setup() {
     ;
     }
     collect_calib_params();
+    SD.begin(CS_PIN);
     chBegin(chSetup);
     // chBegin() resets stacks and should never return.
     while (true) {}  
