@@ -1,0 +1,11 @@
+﻿Part,Manufacturer,Part Number,Quantity,Price ($),Footprint (mm²),Description
+Cin,TDK,C1608X5R1E106M080AC,1,0.2,4.68,Cap: 10 µF  Total Derated Cap: 680 nF  VDC: 25 V  ESR: 4.64 mΩ  Package: 0603  
+L1,NIC Components,NPI75C150MTRF,1,0.1461,93.93,L: 15 µH  DCR: 90 mΩ  IDC: 1.8 A  
+Cboot,Kemet,C0603X104K4RACTU,1,0.09,4.68,Cap: 100 nF  Total Derated Cap: 100 nF  VDC: 16 V  ESR: 1 mΩ  Package: 0603  
+Cinx,MuRata,GRM188R71H104KA93D,1,0.02,4.68,Cap: 100 nF  Total Derated Cap: 93 nF  VDC: 50 V  ESR: 20 mΩ  Package: 0603  
+U1,Texas Instruments,LMR50410XFDBVR,1,0.4,14.82,
+Cout,MuRata,GRM31CR61C106KA88L,2,0.08,10.92,Cap: 10 µF  Total Derated Cap: 18 µF  VDC: 16 V  ESR: 3.62 mΩ  Package: 1206  
+Renb,Vishay-Dale,CRCW0603200KFKEA,1,0.01,4.68,Resistance: 200 kΩ  Tolerance: 1.0%  Power: 100 mW  
+Rent,Vishay-Dale,CRCW0805665KFKEA,1,0.01,6.75,Resistance: 665 kΩ  Tolerance: 1.0%  Power: 125 mW  
+Rfbb,Vishay-Dale,CRCW060322K1FKEA,1,0.01,4.68,Resistance: 22.1 kΩ  Tolerance: 1.0%  Power: 100 mW  
+Rfbt,Vishay-Dale,CRCW060388K7FKEA,1,0.01,4.68,Resistance: 88.7 kΩ  Tolerance: 1.0%  Power: 100 mW  

@@ -1,0 +1,8 @@
+(sym_lib_table
+  (lib (name teensy)(type Legacy)(uri /home/kevin/Documents/kiCad_Libraries/teensy_library/teensy.lib)(options "")(descr ""))
+  (lib (name LMR50410XFDBVR)(type Legacy)(uri /home/kevin/Documents/kiCad_Libraries/my_libraries/LMR50410XFDBVR.lib)(options "")(descr ""))
+  (lib (name MPU9250_Invensense_custom)(type Legacy)(uri /home/kevin/Documents/kiCad_Libraries/my_libraries/MPU9250_Invensense_custom.lib)(options "")(descr ""))
+  (lib (name GY-BMP280_custom)(type Legacy)(uri /home/kevin/Documents/kiCad_Libraries/my_libraries/GY-BMP280.lib)(options "")(descr ""))
+  (lib (name TinyGPS++_custom)(type Legacy)(uri /home/kevin/Documents/kiCad_Libraries/my_libraries/TinyGPS++_custom.lib)(options "")(descr ""))
+  (lib (name RobotDyn_SD_Card_Reader)(type Legacy)(uri /home/kevin/Documents/kiCad_Libraries/my_libraries/RobotDyn_SD_Card_Reader.lib)(options "")(descr ""))
+)
