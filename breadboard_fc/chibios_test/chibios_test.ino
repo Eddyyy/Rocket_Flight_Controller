@@ -3,6 +3,7 @@
 #include "MPU9250.h"
 #include "quaternionFilters.h"
 #include "TinyGPS++.h"
+#include "read_barometer.h"
 #include "ChRt.h"
 
 #define I2Cclock 400000
@@ -21,8 +22,14 @@ typedef struct gpsReadings {
     bool isAvailable;
 } GPS_t;
 
+typedef struct baroReadins {
+    float temp, pressure;
+    bool isAvailable;
+} BARO_t;
+
 volatile IMU_t IMU;
 volatile GPS_t GPS;
+volatile BARO_t baro;
 
 MPU9250 myIMU(MPU9250_ADDRESS, I2Cport, I2Cclock);
 TinyGPSPlus myGPS;
@@ -30,6 +37,7 @@ TinyGPSPlus myGPS;
 
 MUTEX_DECL(imuMutex);
 MUTEX_DECL(gpsMutex);
+MUTEX_DECL(baroMutex);
 
 static THD_WORKING_AREA(waThd1, 64);     // Printing thread
 
@@ -37,6 +45,7 @@ static THD_FUNCTION(printThd, arg) {
     (void)arg;
     float ax,ay,az,gx,gy,gz,mx,my,mz;
     float lat,lng,hdop,alt,speed,course;
+    float temp, pressure;
     uint32_t gpsTime;
     bool isSpeedUpd, isCourseUpd, isTimeUpd, isAltUpd, isHdopUpd;
     while(true) {
@@ -66,7 +75,7 @@ static THD_FUNCTION(printThd, arg) {
             alt = GPS.alt; speed = GPS.speed; course = GPS.course;
             gpsTime = GPS.time; isSpeedUpd = GPS.isSpeedUpd;
             isCourseUpd = GPS.isCourseUpd; isTimeUpd = GPS.isTimeUpd;
-            isAltUpd = GPS.isAltUpd; isHdopUpd = GPS.issHdopUpd;
+            isAltUpd = GPS.isAltUpd; isHdopUpd = GPS.isHdopUpd;
             GPS.isAvailable = false;
             chMtxUnlock(&gpsMutex);
             Serial.println("Time,Lat,Long,HDOP,Alt,Speed,Course");
@@ -98,6 +107,16 @@ static THD_FUNCTION(printThd, arg) {
                 Serial.print("NaN"); Serial.print(",");
             }
             Serial.println();
+        }
+
+        if (baro.isAvailable) {
+            chMtxLock(&baroMutex);
+            temp = baro.temp ; pressure = baro.pressure;
+            baro.isAvailable = false;
+            chMtxUnlock(&baroMutex);
+            Serial.println("Temp,Pressure");
+            Serial.print(temp); Serial.print(",");
+            Serial.print(pressure); Serial.println();
         }
         chThdSleepMilliseconds(700);
     }
@@ -218,10 +237,50 @@ static THD_FUNCTION(readGPS, arg) {
             GPS.isSpeedUpd = gpsLocal.isSpeedUpd; GPS.isCourseUpd = gpsLocal.isCourseUpd;
             GPS.isAvailable = true;
             chMtxUnlock(&gpsMutex);
-            chThdSleepMilliseconds(100);
         }
         chThdSleepMilliseconds(203);
 
+    }
+}
+
+static THD_WORKING_AREA(waThd4, 128);     // Baro thread
+
+static THD_FUNCTION(readBaro, arg) {
+    (void)arg;
+    while(true) {
+        BARO_t baroLocal;
+        baroLocal.temp = 0; baroLocal.pressure = 0; baroLocal.isAvailable = false;
+        Wire.beginTransmission(BMP280_I2C_ADDR);
+        Wire.write(BMP280_REG_CTRL_MEAS);
+        Wire.write(0x00 | 0b01 | 0b001<<2 | 0b001<<5);
+        Wire.endTransmission();
+
+        // Burst read temp and preasure
+        Wire.beginTransmission(BMP280_I2C_ADDR);
+        Wire.write(0xF7);
+        Wire.endTransmission();
+        Wire.requestFrom(BMP280_I2C_ADDR, 6);
+        
+        // Preasure val
+        int32_t preasureRaw = Wire.read();
+        preasureRaw <<= 8;
+        preasureRaw |= Wire.read();
+        preasureRaw <<= 8;
+        preasureRaw |= Wire.read();
+
+        // Temperature
+        int32_t tempRaw = Wire.read();
+        tempRaw <<= 8;
+        tempRaw |= Wire.read();
+        tempRaw <<= 8;
+        tempRaw |= Wire.read();
+        baroLocal.temp = convert_temp(tempRaw);
+        baroLocal.pressure = convert_preasure(preasureRaw);
+        chMtxLock(&baroMutex);
+        baro.temp = baroLocal.temp ; baro.pressure = baroLocal.pressure;
+        baro.isAvailable = true;
+        chMtxUnlock(&baroMutex);
+        chThdSleepMilliseconds(279);
     }
 }
 
@@ -231,6 +290,9 @@ void chSetup() {
 
     // Schedule GPS read thread.
     chThdCreateStatic(waThd3, sizeof(waThd3), NORMALPRIO+3, readGPS, NULL);
+
+    // Schedule Baro read thread.
+    chThdCreateStatic(waThd4, sizeof(waThd4), NORMALPRIO+2, readBaro, NULL);
 
     // Schedule print thread.
     chThdCreateStatic(waThd1, sizeof(waThd1), NORMALPRIO+1, printThd, NULL);
@@ -244,6 +306,7 @@ void setup() {
     while (!Serial) {
     ;
     }
+    collect_calib_params();
     chBegin(chSetup);
     // chBegin() resets stacks and should never return.
     while (true) {}  
