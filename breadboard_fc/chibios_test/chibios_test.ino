@@ -12,7 +12,7 @@
 #define I2Cport Wire
 #define MPU9250_ADDRESS MPU9250_ADDRESS_AD0
 #define BUFFER_SIZE 10
-#define CS_PIN 10
+#define CS_PIN 2
 
 File myFile;
 typedef struct imuReadings {
@@ -54,6 +54,7 @@ static THD_FUNCTION(printThd, arg) {
     uint32_t gpsTime;
     uint32_t buf[BUFFER_SIZE];
     bool isSpeedUpd, isCourseUpd, isTimeUpd, isAltUpd, isHdopUpd;
+    bool pause = false;
     while(true) {
         for (int i = 0; i < BUFFER_SIZE; i++) {
             buf[i] = 0;
@@ -103,6 +104,7 @@ static THD_FUNCTION(printThd, arg) {
                 buf[7] = course;
             }
         }
+        SD.begin(CS_PIN);
         switch(buf[0]) {
             case 0:
                 myFile = SD.open("data.txt", FILE_WRITE);
@@ -137,6 +139,17 @@ static THD_FUNCTION(printThd, arg) {
                 Serial.println();
                 myFile.close();
                 break;
+        }
+        while(Serial.available() || pause) {
+            switch(Serial.read()) {
+                case 's':
+                    pause = true;
+                    break;
+                case 'g':
+                    pause = false;
+                    break;
+            }
+            chThdSleepMilliseconds(10);
         }
         chThdSleepMilliseconds(150);
     }
