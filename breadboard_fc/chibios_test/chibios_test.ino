@@ -1,20 +1,24 @@
 #include <Wire.h>
-#include <SD.h>
 #include <SPI.h>
 
+#include "SdFat.h"
 #include "MPU9250.h"
 #include "quaternionFilters.h"
 #include "TinyGPS++.h"
 #include "read_barometer.h"
 #include "ChRt.h"
 
+#define ST2MS(n) ((((n) - 1UL) / (CH_CFG_ST_FREQUENCY / 1000UL)) + 1UL)
+
 #define I2Cclock 400000
 #define I2Cport Wire
 #define MPU9250_ADDRESS MPU9250_ADDRESS_AD0
 #define BUFFER_SIZE 10
-#define CS_PIN 2
+#define SD_CS_PIN SS
 
 File myFile;
+SdFat SD;
+
 typedef struct imuReadings {
     float ax,ay,az,gx,gy,gz,mx,my,mz;
     bool isAvailable;
@@ -55,6 +59,7 @@ static THD_FUNCTION(printThd, arg) {
     uint32_t buf[BUFFER_SIZE];
     bool isSpeedUpd, isCourseUpd, isTimeUpd, isAltUpd, isHdopUpd;
     bool pause = false;
+    systime_t now = 0;
     while(true) {
         for (int i = 0; i < BUFFER_SIZE; i++) {
             buf[i] = 0;
@@ -104,49 +109,57 @@ static THD_FUNCTION(printThd, arg) {
                 buf[7] = course;
             }
         }
-        SD.begin(CS_PIN);
         switch(buf[0]) {
             case 0:
-                myFile = SD.open("data.txt", FILE_WRITE);
-                Serial.println("IMU");
-                myFile.println("IMU");
+                now = ST2MS(chVTGetSystemTime());
+                Serial.print(now);
+                Serial.println(" IMU");
+                myFile.print(now);
+                myFile.println(" IMU");
+
                 for (int i = 1; i < 10; i++) {
                     Serial.print(buf[i]);
                     myFile.print(buf[i]);
                 }
                 Serial.println();
-                myFile.close();
+                myFile.println();
                 break;
             case 1:
-                myFile = SD.open("data.txt", FILE_WRITE);
-                Serial.println("GPS");
-                myFile.println("GPS");
+                now = ST2MS(chVTGetSystemTime());
+                Serial.print(now);
+                Serial.println(" GPS");
+                myFile.print(now);
+                myFile.println(" GPS");
                 for (int i = 1; i < 8; i++) {
                     Serial.print(buf[i]);
                     myFile.print(buf[i]);
                 }
                 Serial.println();
-                myFile.close();
+                myFile.println();
                 break;
             case 2:
-                myFile = SD.open("data.txt", FILE_WRITE);
-                Serial.println("Baro");
-                myFile.println("Baro");
+                now = ST2MS(chVTGetSystemTime());
+                Serial.print(now);
+                Serial.println(" Baro");
+                myFile.print(now);
+                myFile.println(" Baro");
                 for (int i = 1; i < 3; i++) {
                     Serial.print(buf[i]);
                     myFile.print(buf[i]);
                 }
                 Serial.println();
-                myFile.close();
+                myFile.println();
                 break;
         }
         while(Serial.available() || pause) {
             switch(Serial.read()) {
                 case 's':
                     pause = true;
+                    myFile.close();
                     break;
                 case 'g':
                     pause = false;
+                    myFile = SD.open("data.txt", FILE_WRITE);
                     break;
             }
             chThdSleepMilliseconds(10);
@@ -319,13 +332,13 @@ static THD_FUNCTION(readBaro, arg) {
 
 void chSetup() {
     // Schedule IMU read thread.
-    chThdCreateStatic(waThd2, sizeof(waThd2), NORMALPRIO+2, readIMU, NULL);
+    chThdCreateStatic(waThd2, sizeof(waThd2), NORMALPRIO+4, readIMU, NULL);
 
     // Schedule GPS read thread.
     chThdCreateStatic(waThd3, sizeof(waThd3), NORMALPRIO+3, readGPS, NULL);
 
     // Schedule Baro read thread.
-    chThdCreateStatic(waThd4, sizeof(waThd4), NORMALPRIO+4, readBaro, NULL);
+    chThdCreateStatic(waThd4, sizeof(waThd4), NORMALPRIO+2, readBaro, NULL);
 
     // Schedule print thread.
     chThdCreateStatic(waThd1, sizeof(waThd1), NORMALPRIO+1, printThd, NULL);
@@ -340,7 +353,8 @@ void setup() {
     ;
     }
     collect_calib_params();
-    SD.begin(CS_PIN);
+    SD.begin(SD_CS_PIN, SD_SCK_MHZ(4));
+    myFile = SD.open("data.txt", FILE_WRITE);
     chBegin(chSetup);
     // chBegin() resets stacks and should never return.
     while (true) {}  
