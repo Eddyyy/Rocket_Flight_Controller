@@ -124,7 +124,9 @@ static THD_FUNCTION(printThd, arg) {
 
                 for (int i = 1; i < 10; i++) {
                     Serial1.print(buf[i]);
+                    Serial1.print(',');
                     myFile.print(buf[i]);
+                    myFile.print(',');
                 }
                 Serial1.println();
                 myFile.println();
@@ -137,7 +139,9 @@ static THD_FUNCTION(printThd, arg) {
                 myFile.println(" GPS");
                 for (int i = 1; i < 8; i++) {
                     Serial1.print(buf[i]);
+                    Serial1.print(',');
                     myFile.print(buf[i]);
+                    myFile.print(',');
                 }
                 Serial1.println();
                 myFile.println();
@@ -150,7 +154,9 @@ static THD_FUNCTION(printThd, arg) {
                 myFile.println(" Baro");
                 for (int i = 1; i < 3; i++) {
                     Serial1.print(buf[i]);
+                    Serial1.print(',');
                     myFile.print(buf[i]);
+                    myFile.print(',');
                 }
                 Serial1.println();
                 myFile.println();
@@ -349,13 +355,8 @@ void setup() {
     Serial1.begin(57600);
     Serial2.begin(9600);
     Wire.begin();
-    // Wait for USB Serial.
-    while (!Serial) {
-    ;
-    }
     pause = true;
     collect_calib_params();
-
     SD.begin(SD_CS_PIN, SD_SCK_MHZ(4));
     chBegin(chSetup);
     // chBegin() resets stacks and should never return. 
