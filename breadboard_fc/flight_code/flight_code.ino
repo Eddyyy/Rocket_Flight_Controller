@@ -61,7 +61,11 @@ static THD_FUNCTION(printThd, arg) {
     bool isSpeedUpd, isCourseUpd, isTimeUpd, isAltUpd, isHdopUpd;
     bool pause = false;
     systime_t now = 0;
-    while(true) {
+    while (true) {
+        while (pause) {
+            myFile.close();
+            chThdSleepMilliseconds(13);
+        }
         for (int i = 0; i < BUFFER_SIZE; i++) {
             buf[i] = 0;
         }
@@ -70,7 +74,7 @@ static THD_FUNCTION(printThd, arg) {
             temp = baro.temp ; pressure = baro.pressure;
             baro.isAvailable = false;
             chMtxUnlock(&baroMutex);
-            buf[0] = 2;
+            buf[0] = 3;
             buf[1] = temp; buf[2] = pressure;
         } else if (IMU.isAvailable) {
             chMtxLock(&imuMutex);
@@ -79,7 +83,7 @@ static THD_FUNCTION(printThd, arg) {
             mx = IMU.mx; my = IMU.my; mz = IMU.mz;
             IMU.isAvailable = false;
             chMtxUnlock(&imuMutex);
-            buf[0] = 0;
+            buf[0] = 1;
             buf[1] = ax; buf[2] = ay; buf[3] = az;
             buf[4] = gx; buf[5] = gy; buf[5] = gz;
             buf[6] = mx; buf[7] = my; buf[9] = mz;
@@ -92,7 +96,7 @@ static THD_FUNCTION(printThd, arg) {
             isAltUpd = GPS.isAltUpd; isHdopUpd = GPS.isHdopUpd;
             GPS.isAvailable = false;
             chMtxUnlock(&gpsMutex);
-            buf[0] = 1;
+            buf[0] = 2;
             if (isTimeUpd) {
                 buf[1] = gpsTime;
             }
@@ -111,7 +115,7 @@ static THD_FUNCTION(printThd, arg) {
             }
         }
         switch(buf[0]) {
-            case 0:
+            case 1:
                 now = ST2MS(chVTGetSystemTime());
                 Serial.print(now);
                 Serial.println(" IMU");
@@ -125,7 +129,7 @@ static THD_FUNCTION(printThd, arg) {
                 Serial.println();
                 myFile.println();
                 break;
-            case 1:
+            case 2:
                 now = ST2MS(chVTGetSystemTime());
                 Serial.print(now);
                 Serial.println(" GPS");
@@ -138,7 +142,7 @@ static THD_FUNCTION(printThd, arg) {
                 Serial.println();
                 myFile.println();
                 break;
-            case 2:
+            case 3:
                 now = ST2MS(chVTGetSystemTime());
                 Serial.print(now);
                 Serial.println(" Baro");
@@ -152,20 +156,7 @@ static THD_FUNCTION(printThd, arg) {
                 myFile.println();
                 break;
         }
-        while(Serial.available() || pause) {
-            switch(Serial.read()) {
-                case 's':
-                    pause = true;
-                    myFile.close();
-                    break;
-                case 'g':
-                    pause = false;
-                    myFile = SD.open("data.txt", FILE_WRITE);
-                    break;
-            }
-            chThdSleepMilliseconds(10);
-        }
-        chThdSleepMilliseconds(150);
+        chThdSleepMilliseconds(151);
     }
 }
 
@@ -173,7 +164,6 @@ static THD_WORKING_AREA(waThd2, 128);    // IMU readings thread
 
 static THD_FUNCTION(readIMU, arg) {
     (void)arg;
-    while(pause) {chThdSleepMilliseconds(1);}
     myIMU.MPU9250SelfTest(myIMU.selfTest);
     // Calibrate gyro and accelerometers, load biases in bias registers
     myIMU.calibrateMPU9250(myIMU.gyroBias, myIMU.accelBias);
@@ -187,7 +177,10 @@ static THD_FUNCTION(readIMU, arg) {
     myIMU.getGres();
     myIMU.getMres();
 
-    while(!pause) {
+    while(true) {
+        while (pause) {
+            chThdSleepMilliseconds(12);
+        }
         if (myIMU.readByte(MPU9250_ADDRESS, INT_STATUS) & 0x01) {
             myIMU.readAccelData(myIMU.accelCount);  // Read the x/y/z adc values
             // Convert accelerometer readings into g's. This depends on scale being set
@@ -246,7 +239,10 @@ static THD_WORKING_AREA(waThd3, 128);
 
 static THD_FUNCTION(readGPS, arg) {
     (void)arg;
-    while (!pause) {
+    while (true) {
+        while (pause) {
+            chThdSleepMilliseconds(10);
+        }
         while (Serial2.available()) {
             myGPS.encode(Serial2.read());
         }
@@ -286,7 +282,7 @@ static THD_FUNCTION(readGPS, arg) {
             GPS.isAvailable = true;
             chMtxUnlock(&gpsMutex);
         }
-        chThdSleepMilliseconds(278);
+        chThdSleepMilliseconds(281);
 
     }
 }
@@ -295,7 +291,10 @@ static THD_WORKING_AREA(waThd4, 128);     // Baro thread
 
 static THD_FUNCTION(readBaro, arg) {
     (void)arg;
-    while(!pause) {
+    while (true) {
+        while (pause) {
+            chThdSleepMilliseconds(11);
+        }
         BARO_t baroLocal;
         baroLocal.temp = 0; baroLocal.pressure = 0; baroLocal.isAvailable = false;
         Wire.beginTransmission(BMP280_I2C_ADDR);
@@ -328,7 +327,7 @@ static THD_FUNCTION(readBaro, arg) {
         baro.temp = baroLocal.temp ; baro.pressure = baroLocal.pressure;
         baro.isAvailable = true;
         chMtxUnlock(&baroMutex);
-        chThdSleepMilliseconds(279);
+        chThdSleepMilliseconds(283);
     }
 }
 
@@ -356,10 +355,23 @@ void setup() {
     }
     pause = true;
     collect_calib_params();
+
     SD.begin(SD_CS_PIN, SD_SCK_MHZ(4));
     chBegin(chSetup);
-    // chBegin() resets stacks and should never return.
-    while (true) {}  
+    // chBegin() resets stacks and should never return. 
 }
 
-void loop() {}
+void loop() {
+    while (Serial.available() || pause) {
+        switch(Serial.read()) {
+            case 's':
+                pause = true;
+                break;
+            case 'g':
+                pause = false;
+                myFile = SD.open("data.txt", FILE_WRITE);
+                break;
+        }
+        chThdSleepMilliseconds(10);
+    }
+}
