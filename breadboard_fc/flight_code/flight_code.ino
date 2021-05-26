@@ -117,42 +117,42 @@ static THD_FUNCTION(printThd, arg) {
         switch(buf[0]) {
             case 1:
                 now = ST2MS(chVTGetSystemTime());
-                Serial.print(now);
-                Serial.println(" IMU");
+                Serial1.print(now);
+                Serial1.println(" IMU");
                 myFile.print(now);
                 myFile.println(" IMU");
 
                 for (int i = 1; i < 10; i++) {
-                    Serial.print(buf[i]);
+                    Serial1.print(buf[i]);
                     myFile.print(buf[i]);
                 }
-                Serial.println();
+                Serial1.println();
                 myFile.println();
                 break;
             case 2:
                 now = ST2MS(chVTGetSystemTime());
-                Serial.print(now);
-                Serial.println(" GPS");
+                Serial1.print(now);
+                Serial1.println(" GPS");
                 myFile.print(now);
                 myFile.println(" GPS");
                 for (int i = 1; i < 8; i++) {
-                    Serial.print(buf[i]);
+                    Serial1.print(buf[i]);
                     myFile.print(buf[i]);
                 }
-                Serial.println();
+                Serial1.println();
                 myFile.println();
                 break;
             case 3:
                 now = ST2MS(chVTGetSystemTime());
-                Serial.print(now);
-                Serial.println(" Baro");
+                Serial1.print(now);
+                Serial1.println(" Baro");
                 myFile.print(now);
                 myFile.println(" Baro");
                 for (int i = 1; i < 3; i++) {
-                    Serial.print(buf[i]);
+                    Serial1.print(buf[i]);
                     myFile.print(buf[i]);
                 }
-                Serial.println();
+                Serial1.println();
                 myFile.println();
                 break;
         }
@@ -346,7 +346,7 @@ void chSetup() {
 }
 
 void setup() {
-    Serial.begin(115200);
+    Serial1.begin(57600);
     Serial2.begin(9600);
     Wire.begin();
     // Wait for USB Serial.
@@ -362,8 +362,8 @@ void setup() {
 }
 
 void loop() {
-    while (Serial.available() || pause) {
-        switch(Serial.read()) {
+    while (Serial1.available() || pause) {
+        switch(Serial1.read()) {
             case 's':
                 pause = true;
                 break;
