@@ -5,4 +5,5 @@
   (lib (name GY-BMP280_custom)(type Legacy)(uri /home/kevin/Documents/kiCad_Libraries/my_libraries/GY-BMP280.lib)(options "")(descr ""))
   (lib (name TinyGPS++_custom)(type Legacy)(uri /home/kevin/Documents/kiCad_Libraries/my_libraries/TinyGPS++_custom.lib)(options "")(descr ""))
   (lib (name RobotDyn_SD_Card_Reader)(type Legacy)(uri /home/kevin/Documents/kiCad_Libraries/my_libraries/RobotDyn_SD_Card_Reader.lib)(options "")(descr ""))
+  (lib (name RFD900x)(type Legacy)(uri /home/kevin/Documents/kiCad_Libraries/my_libraries/RFD900x.lib)(options "")(descr ""))
 )
