@@ -296,7 +296,7 @@ static THD_FUNCTION(readGPS, arg) {
             GPS.isAvailable = true;
             chMtxUnlock(&gpsMutex);
         }
-        chThdSleepMilliseconds(GPS_READ);
+        chThdSleepMilliseconds(GPS_SLEEP);
 
     }
 }
