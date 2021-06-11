@@ -3,6 +3,7 @@ import pyqtgraph as pg
 import sys  # We need sys so that we can pass argv to QApplication
 # from random import randint
 import numpy as np
+import serial
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -11,7 +12,10 @@ class MainWindow(QtWidgets.QMainWindow):
         # Required initialisation of parent class
         super(MainWindow, self).__init__(*args, **kwargs)
 
-        self.graphWidget = pg.PlotWidget()
+        self.pressureGraphWidget = pg.PlotWidget(title="Pressure")
+        self.vertAccelGraphWidget = pg.PlotWidget(title="Vertical Acceleration")
+        self.pressureGraphWidget.showGrid(x=True,y=True)
+        self.vertAccelGraphWidget.showGrid(x=True,y=True)
 
         self.group = QtWidgets.QGroupBox()
         group_layout = QtWidgets.QHBoxLayout()
@@ -19,18 +23,22 @@ class MainWindow(QtWidgets.QMainWindow):
         self.buttons = QtWidgets.QGroupBox()
         button_layout = QtWidgets.QVBoxLayout()
 
-        button1 = QtWidgets.QPushButton('+ amplitude')
-        button2 = QtWidgets.QPushButton('- amplitude')
+        button1 = QtWidgets.QPushButton('OPEN SERIAL')
+        button2 = QtWidgets.QPushButton('START')
+        button3 = QtWidgets.QPushButton('STOP')
 
         button1.clicked.connect(self.button1_clicked)
         button2.clicked.connect(self.button2_clicked)
+        button3.clicked.connect(self.button3_clicked)
 
         button_layout.addWidget(button1)
         button_layout.addWidget(button2)
+        button_layout.addWidget(button3)
 
         self.buttons.setLayout(button_layout)
 
-        group_layout.addWidget(self.graphWidget)
+        group_layout.addWidget(self.pressureGraphWidget)
+        group_layout.addWidget(self.vertAccelGraphWidget)
         group_layout.addWidget(self.buttons)
         self.group.setLayout(group_layout)
 
@@ -47,11 +55,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.amplitude = 1
         self.y = self.amplitude*np.sin(self.x)  # 100 data points
 
-        self.graphWidget.setBackground('w')
+        self.pressureGraphWidget.setBackground('w')
+        self.vertAccelGraphWidget.setBackground('w')
 
         # Define line colour and style
         pen = pg.mkPen(color=(255, 0, 0))
-        self.data_line = self.graphWidget.plot(self.x, self.y, pen=pen)
+        self.pressure_data = self.pressureGraphWidget.plot(self.x, self.y, pen=pen)
+        self.vert_accel_data = self.vertAccelGraphWidget.plot(self.x, self.y, pen=pen)
+
 
         # Create a timer and link the function to the time
         self.timer = QtCore.QTimer()
@@ -60,6 +71,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.timer.start()
 
     def update_plot_data(self):
+        #baro pressure
+        #vert accel
+        #save all incoming to csv
 
         # Update x
         self.start += 0.1
@@ -69,13 +83,21 @@ class MainWindow(QtWidgets.QMainWindow):
         # Recalc y
         self.y = self.amplitude*np.sin(self.x)
 
-        self.data_line.setData(self.x, self.y)  # Update the data.
+        self.pressure_data.setData(self.x, self.y)  # Update the data.
 
     def button1_clicked(self):
-        self.amplitude += 0.5
-
+        #open serial link
+        self.ser = serial.Serial('/dev/ttyS1', 57600, timeout=1)     
+        
     def button2_clicked(self):
-        self.amplitude -= 0.5
+        #start reading
+        self.stop = False
+        while not self.stop:
+            ser.readline()
+
+    def button3_clicked(self):
+        #stop reading
+        self.stop = True
 
 
 app = QtWidgets.QApplication(sys.argv)
