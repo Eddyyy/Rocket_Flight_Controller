@@ -1,0 +1,9 @@
+Manufacturer=Texas Instruments
+PartNumber=LM51571QRTERQ1
+PartCategory=Integrated Circuit
+PackageCategory=Quad Flat No-Lead
+PinCount=17
+Version=1.1
+Released=2021-04-01 09:03:02
+Downloaded=2021-06-13 12:30:20
+3D=Y

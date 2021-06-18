@@ -1,0 +1,11 @@
+FILE_TYPE = MULTI_PHYS_TABLE;
+
+PART 'SK220ATR'
+CLASS = DISCRETE
+{========================================================================================}
+:"MANUFACTURER_NAME", "MANUFACTURER_PART_NUMBER"= "PART_NUMBER", "JEDEC_TYPE", "PACK_TYPE", "MOUSER_PART_NUMBER", "MOUSER_PRICE/STOCK", "ARROW_PART_NUMBER", "ARROW_PRICE/STOCK", "DESCRIPTION", "DATASHEET", "HEIGHT";
+{========================================================================================}
+ "SMC Diode Solutions", "SK220ATR" (!) = "", "DIOM5226X295N", "Diodes Moulded", "", "", "", "", "SCHOTTKY RECTIFIER", "http://www.smc-diodes.com/propdf/SK220A%20N0942%20REV.B.pdf", "2.95 mm"
+END_PART
+
+END.

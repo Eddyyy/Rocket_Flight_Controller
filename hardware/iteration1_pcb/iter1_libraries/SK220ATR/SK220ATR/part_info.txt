@@ -1,0 +1,9 @@
+Manufacturer=SMC Diode Solutions
+PartNumber=SK220ATR
+PartCategory=Diode
+PackageCategory=Diodes Moulded
+PinCount=2
+Version=1.1
+Released=2017-10-14 11:46:23
+Downloaded=2021-06-14 00:17:53
+3D=Y

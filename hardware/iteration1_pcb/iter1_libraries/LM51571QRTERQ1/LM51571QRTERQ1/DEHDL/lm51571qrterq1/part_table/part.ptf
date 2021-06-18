@@ -1,0 +1,11 @@
+FILE_TYPE = MULTI_PHYS_TABLE;
+
+PART 'LM51571QRTERQ1'
+CLASS = IC
+{========================================================================================}
+:"MANUFACTURER_NAME", "MANUFACTURER_PART_NUMBER"= "PART_NUMBER", "JEDEC_TYPE", "PACK_TYPE", "MOUSER_PART_NUMBER", "MOUSER_PRICE/STOCK", "ARROW_PART_NUMBER", "ARROW_PRICE/STOCK", "DESCRIPTION", "DATASHEET", "HEIGHT";
+{========================================================================================}
+ "Texas Instruments", "LM51571QRTERQ1" (!) = "", "QFN50P300X300X80-17N-D", "Quad Flat No-Lead", "595-LM51571QRTERQ1", "https://www.mouser.co.uk/ProductDetail/Texas-Instruments/LM51571QRTERQ1?qs=DRkmTr78QATLeGZjuFYyEQ%3D%3D", "", "", "4-A, 50-V, 2.2-MHz wide VIN boost, flyback, & SEPIC converter with dual random spread spectrum", "https://www.ti.com/lit/ds/symlink/lm51571-q1.pdf?ts=1617256844020&ref_url=https%253A%252F%252Fwww.ti.com%252Fstore%252Fti%252Fen%252Fp%252Fproduct%252F%253Fp%253DLM51571QRTERQ1", "0.8 mm"
+END_PART
+
+END.

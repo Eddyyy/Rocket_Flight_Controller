@@ -1,0 +1,9 @@
+EESchema-DOCLIB  Version 2.0
+#
+$CMP SK220ATR
+D SCHOTTKY RECTIFIER
+K
+F http://www.smc-diodes.com/propdf/SK220A%20N0942%20REV.B.pdf
+$ENDCMP
+#
+#End Doc Library
