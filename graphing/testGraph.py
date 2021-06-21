@@ -120,16 +120,19 @@ class MainWindow(QtWidgets.QMainWindow):
     def button2_clicked(self):
         #start reading
         self.ser.write(b'g')
+        print('start reading')
         self.readTimer.start()
 
     def button3_clicked(self):
         #stop reading
         self.readTimer.stop()
+        print('stop reading')
         self.ser.write(b's')
 
     def button4_clicked(self):
         #stop reading
         self.ser.close()
+        print('serial closed')
 
 
 app = QtWidgets.QApplication(sys.argv)
