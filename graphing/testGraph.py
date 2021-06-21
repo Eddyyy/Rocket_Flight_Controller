@@ -4,7 +4,7 @@ import sys  # We need sys so that we can pass argv to QApplication
 # from random import randint
 import numpy as np
 import serial
-
+import queue
 
 class MainWindow(QtWidgets.QMainWindow):
 
@@ -45,59 +45,82 @@ class MainWindow(QtWidgets.QMainWindow):
         # Add widget to hold the graph
         self.setCentralWidget(self.group)
 
-        # Create arrays to hold graph data
-        self.start = 0
-        self.end = 2*np.pi
-        self.num_points = 1000
-        # 100 time points
-        self.x = np.linspace(self.start, self.end, self.num_points)
+        self.baroQ = queue.SimpleQueue()
+        self.vertAccelQ = queue.SimpleQueue()
 
-        self.amplitude = 1
-        self.y = self.amplitude*np.sin(self.x)  # 100 data points
+        self.pressureX = [0]
+        self.pressureY = [0]
+        self.vertAccelX = [0]
+        self.vertAccelY = [0]
 
         self.pressureGraphWidget.setBackground('w')
         self.vertAccelGraphWidget.setBackground('w')
 
         # Define line colour and style
         pen = pg.mkPen(color=(255, 0, 0))
-        self.pressure_data = self.pressureGraphWidget.plot(self.x, self.y, pen=pen)
-        self.vert_accel_data = self.vertAccelGraphWidget.plot(self.x, self.y, pen=pen)
-
+        self.pressure_data = self.pressureGraphWidget.plot(self.pressureX, self.pressureY, pen=pen)
+        self.vert_accel_data = self.vertAccelGraphWidget.plot(self.vertAccelX, self.vertAccelY, pen=pen)
 
         # Create a timer and link the function to the time
-        self.timer = QtCore.QTimer()
-        self.timer.setInterval(50)
-        self.timer.timeout.connect(self.update_plot_data)
-        self.timer.start()
+        self.pressureTimer = QtCore.QTimer()
+        self.pressureTimer.setInterval(50)
+        self.pressureTimer.timeout.connect(self.update_pressure_plot_data)
+        self.pressureTimer.start()
 
-    def update_plot_data(self):
+        self.vertAccelTimer = QtCore.QTimer()
+        self.vertAccelTimer.setInterval(50)
+        self.vertAccelTimer.timeout.connect(self.update_vert_accel_plot_data)
+        self.vertAccelTimer.start()
+
+        self.readTimer = QtCore.QTimer()
+        self.readTimer.setInterval(10)
+        self.readTimer.timeout.connect(self.read_data)
+
+    def update_pressure_plot_data(self):
         #baro pressure
         #vert accel
         #save all incoming to csv
+        while not self.baroQ.empty():
+            try:
+                baroReading = self.baroQ.get_nowait()
+            except Empty as err:
+                break
+            baroReading = baroReading.split(",")
+            self.pressureX.append(baroReading[0])
+            self.pressureY.append(baroReading[4])
 
-        # Update x
-        self.start += 0.1
-        self.end += 0.1
-        self.x = np.linspace(self.start, self.end, self.num_points)
+        self.pressure_data.setData(self.pressureX, self.pressureY)  # Update the data.
 
-        # Recalc y
-        self.y = self.amplitude*np.sin(self.x)
+    def update_vert_accel_plot_data(self):
+        while not self.vertAccelQ.empty():
+            try:
+                vertAccelReading = self.vertAccelQ.get_nowait()
+            except Empty as err:
+                break
+            vertAccelReading = vertAccelReading.split(",")
+            self.vertAccelX.append(vertAccelReading[0])
+            self.vertAccelY.append(vertAccelReading[4])
 
-        self.pressure_data.setData(self.x, self.y)  # Update the data.
+        self.vert_accel_data.setData(self.vertAccelX, self.vertAccelY)  # Update the data.
+
+    def read_data(self):
+        dataLine = ser.readline()
+        if "Baro" in dataLine:
+            self.baroQ.put(dataLine)
+        elif "IMU" in dataLine:
+            self.accelQ.put(dataLine)
 
     def button1_clicked(self):
         #open serial link
-        self.ser = serial.Serial('/dev/ttyS1', 57600, timeout=1)     
-        
+        self.ser = serial.Serial('/dev/ttyUSB0', 57600, timeout=1)
+
     def button2_clicked(self):
         #start reading
-        self.stop = False
-        while not self.stop:
-            ser.readline()
+        self.readTimer.start()
 
     def button3_clicked(self):
         #stop reading
-        self.stop = True
+        self.readTimer.stop()
 
 
 app = QtWidgets.QApplication(sys.argv)
