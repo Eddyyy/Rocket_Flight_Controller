@@ -379,6 +379,9 @@ void loop() {
             case 'g':
                 pause = false;
                 myFile = SD.open("data.txt", FILE_WRITE);
+                if (!myFile) {
+                    pause = true;
+                }
                 break;
         }
         chThdSleepMilliseconds(10);
