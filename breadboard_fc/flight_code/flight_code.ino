@@ -69,25 +69,7 @@ static THD_FUNCTION(printThd, arg) {
         for (int i = 0; i < BUFFER_SIZE; i++) {
             buf[i] = 0;
         }
-        if (baro.isAvailable) {
-            chMtxLock(&baroMutex);
-            temp = baro.temp ; pressure = baro.pressure;
-            baro.isAvailable = false;
-            chMtxUnlock(&baroMutex);
-            buf[0] = 3;
-            buf[1] = temp; buf[2] = pressure;
-        } else if (IMU.isAvailable) {
-            chMtxLock(&imuMutex);
-            ax = (int)1000 * IMU.ax; ay = (int)1000 * IMU.ay; az = (int)1000 * IMU.az;
-            gx = IMU.gx; gy = IMU.gy; gz = IMU.gz;
-            mx = IMU.mx; my = IMU.my; mz = IMU.mz;
-            IMU.isAvailable = false;
-            chMtxUnlock(&imuMutex);
-            buf[0] = 1;
-            buf[1] = ax; buf[2] = ay; buf[3] = az;
-            buf[4] = gx; buf[5] = gy; buf[5] = gz;
-            buf[6] = mx; buf[7] = my; buf[9] = mz;
-        } else if (GPS.isAvailable) {
+        if (GPS.isAvailable) {
             chMtxLock(&gpsMutex);
             lat = GPS.lat; lng = GPS.lng; hdop = GPS.hdop;
             alt = GPS.alt; speed = GPS.speed; course = GPS.course;
@@ -113,14 +95,32 @@ static THD_FUNCTION(printThd, arg) {
             if (isCourseUpd) {
                 buf[7] = course;
             }
-        }
+        } else if (baro.isAvailable) {
+            chMtxLock(&baroMutex);
+            temp = baro.temp ; pressure = baro.pressure;
+            baro.isAvailable = false;
+            chMtxUnlock(&baroMutex);
+            buf[0] = 3;
+            buf[1] = temp; buf[2] = pressure;
+        } else if (IMU.isAvailable) {
+            chMtxLock(&imuMutex);
+            ax = (int)1000 * IMU.ax; ay = (int)1000 * IMU.ay; az = (int)1000 * IMU.az;
+            gx = IMU.gx; gy = IMU.gy; gz = IMU.gz;
+            mx = IMU.mx; my = IMU.my; mz = IMU.mz;
+            IMU.isAvailable = false;
+            chMtxUnlock(&imuMutex);
+            buf[0] = 1;
+            buf[1] = ax; buf[2] = ay; buf[3] = az;
+            buf[4] = gx; buf[5] = gy; buf[5] = gz;
+            buf[6] = mx; buf[7] = my; buf[9] = mz;
+        } 
         switch(buf[0]) {
             case 1:
                 now = ST2MS(chVTGetSystemTime());
                 Serial1.print(now);
-                Serial1.println(" IMU");
+                Serial1.print(",IMU,");
                 myFile.print(now);
-                myFile.println(" IMU");
+                myFile.print(",IMU,");
 
                 for (int i = 1; i < 10; i++) {
                     Serial1.print(buf[i]);
@@ -134,9 +134,9 @@ static THD_FUNCTION(printThd, arg) {
             case 2:
                 now = ST2MS(chVTGetSystemTime());
                 Serial1.print(now);
-                Serial1.println(" GPS");
+                Serial1.print(",GPS,");
                 myFile.print(now);
-                myFile.println(" GPS");
+                myFile.print(",GPS,");
                 for (int i = 1; i < 8; i++) {
                     Serial1.print(buf[i]);
                     Serial1.print(',');
@@ -149,9 +149,9 @@ static THD_FUNCTION(printThd, arg) {
             case 3:
                 now = ST2MS(chVTGetSystemTime());
                 Serial1.print(now);
-                Serial1.println(" Baro");
+                Serial1.print(",Baro,");
                 myFile.print(now);
-                myFile.println(" Baro");
+                myFile.print(",Baro,");
                 for (int i = 1; i < 3; i++) {
                     Serial1.print(buf[i]);
                     Serial1.print(',');
