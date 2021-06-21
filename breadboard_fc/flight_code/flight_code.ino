@@ -16,6 +16,14 @@
 #define BUFFER_SIZE 10
 #define SD_CS_PIN SS
 
+#define PRINT_SLEEP 151
+#define BARO_SLEEP 283
+#define IMU_SLEEP 277
+#define GPS_SLEEP 281
+
+#define GPS_BAUD 9600
+#define RF_BAUD 57600
+
 File myFile;
 SdFat SD;
 
@@ -162,7 +170,7 @@ static THD_FUNCTION(printThd, arg) {
                 myFile.println();
                 break;
         }
-        chThdSleepMilliseconds(151);
+        chThdSleepMilliseconds(PRINT_SLEEP);
     }
 }
 
@@ -237,7 +245,7 @@ static THD_FUNCTION(readIMU, arg) {
             chMtxUnlock(&imuMutex);
             // Exit protected region
 
-            chThdSleepMilliseconds(277);
+            chThdSleepMilliseconds(IMU_SLEEP);
     }
 }
 
@@ -288,7 +296,7 @@ static THD_FUNCTION(readGPS, arg) {
             GPS.isAvailable = true;
             chMtxUnlock(&gpsMutex);
         }
-        chThdSleepMilliseconds(281);
+        chThdSleepMilliseconds(GPS_SLEEP);
 
     }
 }
@@ -333,7 +341,7 @@ static THD_FUNCTION(readBaro, arg) {
         baro.temp = baroLocal.temp ; baro.pressure = baroLocal.pressure;
         baro.isAvailable = true;
         chMtxUnlock(&baroMutex);
-        chThdSleepMilliseconds(283);
+        chThdSleepMilliseconds(BARO_SLEEP);
     }
 }
 
@@ -352,8 +360,8 @@ void chSetup() {
 }
 
 void setup() {
-    Serial1.begin(57600);
-    Serial2.begin(9600);
+    Serial1.begin(RF_BAUD);
+    Serial2.begin(GPS_BAUD);
     Wire.begin();
     pause = true;
     collect_calib_params();
