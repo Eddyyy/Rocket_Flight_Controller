@@ -26,14 +26,17 @@ class MainWindow(QtWidgets.QMainWindow):
         button1 = QtWidgets.QPushButton('OPEN SERIAL')
         button2 = QtWidgets.QPushButton('START')
         button3 = QtWidgets.QPushButton('STOP')
+        button4 = QtWidgets.QPushButton('CLOSE SERIAL')
 
         button1.clicked.connect(self.button1_clicked)
         button2.clicked.connect(self.button2_clicked)
         button3.clicked.connect(self.button3_clicked)
+        button4.clicked.connect(self.button4_clicked)
 
         button_layout.addWidget(button1)
         button_layout.addWidget(button2)
         button_layout.addWidget(button3)
+        button_layout.addWidget(button4)
 
         self.buttons.setLayout(button_layout)
 
@@ -49,7 +52,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.vertAccelQ = queue.SimpleQueue()
 
         self.pressureX = [0]
-        self.pressureY = [0]
+        self.pressureY = [100000]
         self.vertAccelX = [0]
         self.vertAccelY = [0]
 
@@ -73,21 +76,18 @@ class MainWindow(QtWidgets.QMainWindow):
         self.vertAccelTimer.start()
 
         self.readTimer = QtCore.QTimer()
-        self.readTimer.setInterval(10)
+        self.readTimer.setInterval(1)
         self.readTimer.timeout.connect(self.read_data)
 
     def update_pressure_plot_data(self):
-        #baro pressure
-        #vert accel
-        #save all incoming to csv
         while not self.baroQ.empty():
             try:
                 baroReading = self.baroQ.get_nowait()
             except Empty as err:
                 break
             baroReading = baroReading.split(",")
-            self.pressureX.append(baroReading[0])
-            self.pressureY.append(baroReading[4])
+            self.pressureX.append(float(baroReading[0]))
+            self.pressureY.append(float(baroReading[3]))
 
         self.pressure_data.setData(self.pressureX, self.pressureY)  # Update the data.
 
@@ -98,29 +98,38 @@ class MainWindow(QtWidgets.QMainWindow):
             except Empty as err:
                 break
             vertAccelReading = vertAccelReading.split(",")
-            self.vertAccelX.append(vertAccelReading[0])
-            self.vertAccelY.append(vertAccelReading[4])
+            self.vertAccelX.append(float(vertAccelReading[0]))
+            self.vertAccelY.append(float(vertAccelReading[3]))
 
         self.vert_accel_data.setData(self.vertAccelX, self.vertAccelY)  # Update the data.
 
     def read_data(self):
-        dataLine = ser.readline()
-        if "Baro" in dataLine:
-            self.baroQ.put(dataLine)
-        elif "IMU" in dataLine:
-            self.accelQ.put(dataLine)
+        dataLine = self.ser.readline().decode('UTF-8')
+        if dataLine:
+            print(dataLine)
+            if "Baro" in dataLine:
+                self.baroQ.put(dataLine)
+            elif "IMU" in dataLine:
+                self.vertAccelQ.put(dataLine)
 
     def button1_clicked(self):
         #open serial link
         self.ser = serial.Serial('/dev/ttyUSB0', 57600, timeout=1)
+        print(self.ser)
 
     def button2_clicked(self):
         #start reading
+        self.ser.write(b'g')
         self.readTimer.start()
 
     def button3_clicked(self):
         #stop reading
         self.readTimer.stop()
+        self.ser.write(b's')
+
+    def button4_clicked(self):
+        #stop reading
+        self.ser.close()
 
 
 app = QtWidgets.QApplication(sys.argv)
