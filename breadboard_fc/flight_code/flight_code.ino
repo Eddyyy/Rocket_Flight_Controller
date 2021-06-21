@@ -16,7 +16,9 @@
 #define BUFFER_SIZE 10
 #define SD_CS_PIN SS
 
-#define PRINT_SLEEP 151
+#define IMU_PRINT_SLEEP 149
+#define GPS_PRINT_SLEEP 151
+#define BARO_PRINT_SLEEP 157
 #define BARO_SLEEP 283
 #define IMU_SLEEP 277
 #define GPS_SLEEP 281
@@ -45,6 +47,7 @@ typedef struct baroReadins {
 } BARO_t;
 
 volatile bool pause;
+volatile bool sdConnected;
 volatile IMU_t IMU;
 volatile GPS_t GPS;
 volatile BARO_t baro;
@@ -57,16 +60,12 @@ MUTEX_DECL(imuMutex);
 MUTEX_DECL(gpsMutex);
 MUTEX_DECL(baroMutex);
 
-static THD_WORKING_AREA(waThd1, 64);     // Printing thread
+static THD_WORKING_AREA(waThd1, 64);     // IMU Printing thread
 
-static THD_FUNCTION(printThd, arg) {
+static THD_FUNCTION(imuPrintThd, arg) {
     (void)arg;
     float ax,ay,az,gx,gy,gz,mx,my,mz;
-    float lat,lng,hdop,alt,speed,course;
-    float temp, pressure;
-    uint32_t gpsTime;
-    uint32_t buf[BUFFER_SIZE];
-    bool isSpeedUpd, isCourseUpd, isTimeUpd, isAltUpd, isHdopUpd;
+    //uint32_t buf[BUFFER_SIZE];
     bool pause = false;
     systime_t now = 0;
     while (true) {
@@ -74,9 +73,82 @@ static THD_FUNCTION(printThd, arg) {
             myFile.close();
             chThdSleepMilliseconds(13);
         }
+        /*
         for (int i = 0; i < BUFFER_SIZE; i++) {
             buf[i] = 0;
         }
+        */
+        if (IMU.isAvailable) {
+            chMtxLock(&imuMutex);
+            ax = (int)1000 * IMU.ax; ay = (int)1000 * IMU.ay; az = (int)1000 * IMU.az;
+            gx = IMU.gx; gy = IMU.gy; gz = IMU.gz;
+            mx = IMU.mx; my = IMU.my; mz = IMU.mz;
+            IMU.isAvailable = false;
+            chMtxUnlock(&imuMutex);
+            dataType = 1;
+            /*
+            buf[0] = 1;
+            buf[1] = ax; buf[2] = ay; buf[3] = az;
+            buf[4] = gx; buf[5] = gy; buf[5] = gz;
+            buf[6] = mx; buf[7] = my; buf[9] = mz;
+            */
+            now = ST2MS(chVTGetSystemTime());
+            Serial1.print(now);
+            Serial1.print(",IMU,");
+            myFile.print(now);
+            myFile.print(",IMU,");
+            /*
+            for (int i = 1; i < 10; i++) {
+                Serial1.print(buf[i]);
+                Serial1.print(',');
+                myFile.print(buf[i]);
+                myFile.print(',');
+            }
+            */
+            Serial1.print(ax); Serial1.print(",");
+            Serial1.print(ay); Serial1.print(",");
+            Serial1.print(az); Serial1.print(",");
+            Serial1.print(gx); Serial1.print(",");
+            Serial1.print(gy); Serial1.print(",");
+            Serial1.print(gz); Serial1.print(",");
+            Serial1.print(mx); Serial1.print(",");
+            Serial1.print(my); Serial1.print(",");
+            Serial1.print(mz); Serial1.println();
+
+            myFile.print(ax); myFile.print(",");
+            myFile.print(ay); myFile.print(",");
+            myFile.print(az); myFile.print(",");
+            myFile.print(gx); myFile.print(",");
+            myFile.print(gy); myFile.print(",");
+            myFile.print(gz); myFile.print(",");
+            myFile.print(mx); myFile.print(",");
+            myFile.print(my); myFile.print(",");
+            myFile.print(mz); myFile.println();
+        }
+        chThdSleepMilliseconds(IMU_PRINT_SLEEP);
+    }
+}
+
+static THD_WORKING_AREA(waThd2, 64);     // GPS Printing thread
+
+static THD_FUNCTION(gpsPrintThd, arg) {
+    (void)arg;
+    float lat,lng,hdop,alt,speed,course;
+    bool isSpeedUpd, isCourseUpd, isTimeUpd, isAltUpd, isHdopUpd;
+    uint32_t gpsTime;
+    //uint32_t buf[BUFFER_SIZE];
+    bool pause = false;
+    systime_t now = 0;
+    while (true) {
+        while (pause) {
+            myFile.close();
+            chThdSleepMilliseconds(13);
+        }
+        /*
+        for (int i = 0; i < BUFFER_SIZE; i++) {
+            buf[i] = 0;
+        }
+        */
         if (GPS.isAvailable) {
             chMtxLock(&gpsMutex);
             lat = GPS.lat; lng = GPS.lng; hdop = GPS.hdop;
@@ -86,6 +158,7 @@ static THD_FUNCTION(printThd, arg) {
             isAltUpd = GPS.isAltUpd; isHdopUpd = GPS.isHdopUpd;
             GPS.isAvailable = false;
             chMtxUnlock(&gpsMutex);
+            /*
             buf[0] = 2;
             if (isTimeUpd) {
                 buf[1] = gpsTime;
@@ -103,78 +176,92 @@ static THD_FUNCTION(printThd, arg) {
             if (isCourseUpd) {
                 buf[7] = course;
             }
-        } else if (baro.isAvailable) {
+            */
+            now = ST2MS(chVTGetSystemTime());
+            Serial1.print(now);
+            Serial1.print(",GPS,");
+            myFile.print(now);
+            myFile.print(",GPS,");
+            /*
+            for (int i = 1; i < 8; i++) {
+                Serial1.print(buf[i]);
+                Serial1.print(',');
+                myFile.print(buf[i]);
+                myFile.print(',');
+            }
+            */
+            Serial1.print(gpsTime); Serial1.print(",");
+            Serial1.print(lat); Serial1.print(",");
+            Serial1.print(lng); Serial1.print(",");
+            Serial1.print(hdop); Serial1.print(",");
+            Serial1.print(alt); Serial1.print(",");
+            Serial1.print(speed); Serial1.print(",");
+            Serial1.print(course); Serial1.println();
+
+            myFile.print(gpsTime); myFile.print(",");
+            myFile.print(lat); myFile.print(",");
+            myFile.print(lng); myFile.print(",");
+            myFile.print(hdop); myFile.print(",");
+            myFile.print(alt); myFile.print(",");
+            myFile.print(speed); myFile.print(",");
+            myFile.print(course); myFile.println();
+        }
+        chThdSleepMilliseconds(GPS_PRINT_SLEEP);
+    }
+}
+
+static THD_WORKING_AREA(waThd3, 64);     // Baro Printing thread
+
+static THD_FUNCTION(baroPrintThd, arg) {
+    (void)arg;
+    float temp, pressure;
+    bool pause = false;
+    systime_t now = 0;
+    while (true) {
+        while (pause) {
+            myFile.close();
+            chThdSleepMilliseconds(13);
+        }
+        /*
+        for (int i = 0; i < BUFFER_SIZE; i++) {
+            buf[i] = 0;
+        }
+        */
+        if (baro.isAvailable) {
             chMtxLock(&baroMutex);
             temp = baro.temp ; pressure = baro.pressure;
             baro.isAvailable = false;
             chMtxUnlock(&baroMutex);
+            /*
             buf[0] = 3;
             buf[1] = temp; buf[2] = pressure;
-        } else if (IMU.isAvailable) {
-            chMtxLock(&imuMutex);
-            ax = (int)1000 * IMU.ax; ay = (int)1000 * IMU.ay; az = (int)1000 * IMU.az;
-            gx = IMU.gx; gy = IMU.gy; gz = IMU.gz;
-            mx = IMU.mx; my = IMU.my; mz = IMU.mz;
-            IMU.isAvailable = false;
-            chMtxUnlock(&imuMutex);
-            buf[0] = 1;
-            buf[1] = ax; buf[2] = ay; buf[3] = az;
-            buf[4] = gx; buf[5] = gy; buf[5] = gz;
-            buf[6] = mx; buf[7] = my; buf[9] = mz;
-        } 
-        switch(buf[0]) {
-            case 1:
-                now = ST2MS(chVTGetSystemTime());
-                Serial1.print(now);
-                Serial1.print(",IMU,");
-                myFile.print(now);
-                myFile.print(",IMU,");
+            */
+            now = ST2MS(chVTGetSystemTime());
+            Serial1.print(now);
+            Serial1.print(",Baro,");
+            if (!myFile) {
+                    pause = true;
+            }
+            myFile.print(now);
+            myFile.print(",Baro,");
+            /*
+            for (int i = 1; i < 3; i++) {
+                Serial1.print(buf[i]);
+                Serial1.print(',');
+                myFile.print(buf[i]);
+                myFile.print(',');
+            }
+            */
+            Serial1.print(temp); Serial1.print(",");
+            Serial1.print(pressure); Serial1.println();
 
-                for (int i = 1; i < 10; i++) {
-                    Serial1.print(buf[i]);
-                    Serial1.print(',');
-                    myFile.print(buf[i]);
-                    myFile.print(',');
-                }
-                Serial1.println();
-                myFile.println();
-                break;
-            case 2:
-                now = ST2MS(chVTGetSystemTime());
-                Serial1.print(now);
-                Serial1.print(",GPS,");
-                myFile.print(now);
-                myFile.print(",GPS,");
-                for (int i = 1; i < 8; i++) {
-                    Serial1.print(buf[i]);
-                    Serial1.print(',');
-                    myFile.print(buf[i]);
-                    myFile.print(',');
-                }
-                Serial1.println();
-                myFile.println();
-                break;
-            case 3:
-                now = ST2MS(chVTGetSystemTime());
-                Serial1.print(now);
-                Serial1.print(",Baro,");
-                myFile.print(now);
-                myFile.print(",Baro,");
-                for (int i = 1; i < 3; i++) {
-                    Serial1.print(buf[i]);
-                    Serial1.print(',');
-                    myFile.print(buf[i]);
-                    myFile.print(',');
-                }
-                Serial1.println();
-                myFile.println();
-                break;
+            myFile.print(temp); myFile.print(",");
+            myFile.print(pressure); myFile.println();
         }
-        chThdSleepMilliseconds(PRINT_SLEEP);
+        chThdSleepMilliseconds(BARO_PRINT_SLEEP);
     }
 }
-
-static THD_WORKING_AREA(waThd2, 128);    // IMU readings thread
+static THD_WORKING_AREA(waThd4, 128);    // IMU readings thread
 
 static THD_FUNCTION(readIMU, arg) {
     (void)arg;
@@ -249,7 +336,7 @@ static THD_FUNCTION(readIMU, arg) {
     }
 }
 
-static THD_WORKING_AREA(waThd3, 128);
+static THD_WORKING_AREA(waThd5, 128);
 
 static THD_FUNCTION(readGPS, arg) {
     (void)arg;
@@ -301,7 +388,7 @@ static THD_FUNCTION(readGPS, arg) {
     }
 }
 
-static THD_WORKING_AREA(waThd4, 128);     // Baro thread
+static THD_WORKING_AREA(waThd6, 128);     // Baro thread
 
 static THD_FUNCTION(readBaro, arg) {
     (void)arg;
@@ -347,16 +434,22 @@ static THD_FUNCTION(readBaro, arg) {
 
 void chSetup() {
     // Schedule IMU read thread.
-    chThdCreateStatic(waThd2, sizeof(waThd2), NORMALPRIO+4, readIMU, NULL);
+    chThdCreateStatic(waThd4, sizeof(waThd4), NORMALPRIO+6, readIMU, NULL);
 
     // Schedule GPS read thread.
-    chThdCreateStatic(waThd3, sizeof(waThd3), NORMALPRIO+3, readGPS, NULL);
+    chThdCreateStatic(waThd5, sizeof(waThd5), NORMALPRIO+5, readGPS, NULL);
 
     // Schedule Baro read thread.
-    chThdCreateStatic(waThd4, sizeof(waThd4), NORMALPRIO+2, readBaro, NULL);
+    chThdCreateStatic(waThd6, sizeof(waThd6), NORMALPRIO+4, readBaro, NULL);
 
     // Schedule print thread.
-    chThdCreateStatic(waThd1, sizeof(waThd1), NORMALPRIO+1, printThd, NULL);
+    chThdCreateStatic(waThd1, sizeof(waThd1), NORMALPRIO+3, imuPrintThd, NULL);
+
+    // Schedule print thread.
+    chThdCreateStatic(waThd2, sizeof(waThd2), NORMALPRIO+2, gpsPrintThd, NULL);
+
+    // Schedule print thread.
+    chThdCreateStatic(waThd3, sizeof(waThd3), NORMALPRIO+1, baroPrintThd, NULL);
 }
 
 void setup() {
