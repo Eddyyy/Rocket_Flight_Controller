@@ -23,7 +23,7 @@ $EndSheet
 $Sheet
 S 7525 950  1250 1300
 U 60C5ED9B
-F0 "igniter_charger" 50
-F1 "igniter_charger.sch" 50
+F0 "igniter_actuator" 50
+F1 "igniter_actuator.sch" 50
 $EndSheet
 $EndSCHEMATC
