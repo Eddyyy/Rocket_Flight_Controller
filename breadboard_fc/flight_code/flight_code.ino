@@ -59,6 +59,7 @@ TinyGPSPlus myGPS;
 MUTEX_DECL(imuMutex);
 MUTEX_DECL(gpsMutex);
 MUTEX_DECL(baroMutex);
+MUTEX_DECL(printMutex);
 
 static THD_WORKING_AREA(waThd1, 64);     // IMU Printing thread
 
@@ -80,9 +81,9 @@ static THD_FUNCTION(imuPrintThd, arg) {
         */
         if (IMU.isAvailable) {
             chMtxLock(&imuMutex);
-            ax = (int)1000 * IMU.ax; ay = (int)1000 * IMU.ay; az = (int)1000 * IMU.az;
-            gx = IMU.gx; gy = IMU.gy; gz = IMU.gz;
-            mx = IMU.mx; my = IMU.my; mz = IMU.mz;
+                ax = (int)1000 * IMU.ax; ay = (int)1000 * IMU.ay; az = (int)1000 * IMU.az;
+                gx = IMU.gx; gy = IMU.gy; gz = IMU.gz;
+                mx = IMU.mx; my = IMU.my; mz = IMU.mz;
             IMU.isAvailable = false;
             chMtxUnlock(&imuMutex);
             dataType = 1;
@@ -105,25 +106,27 @@ static THD_FUNCTION(imuPrintThd, arg) {
                 myFile.print(',');
             }
             */
-            Serial1.print(ax); Serial1.print(",");
-            Serial1.print(ay); Serial1.print(",");
-            Serial1.print(az); Serial1.print(",");
-            Serial1.print(gx); Serial1.print(",");
-            Serial1.print(gy); Serial1.print(",");
-            Serial1.print(gz); Serial1.print(",");
-            Serial1.print(mx); Serial1.print(",");
-            Serial1.print(my); Serial1.print(",");
-            Serial1.print(mz); Serial1.println();
+            chMtxLock(&printMutex);
+                Serial1.print(ax); Serial1.print(",");
+                Serial1.print(ay); Serial1.print(",");
+                Serial1.print(az); Serial1.print(",");
+                Serial1.print(gx); Serial1.print(",");
+                Serial1.print(gy); Serial1.print(",");
+                Serial1.print(gz); Serial1.print(",");
+                Serial1.print(mx); Serial1.print(",");
+                Serial1.print(my); Serial1.print(",");
+                Serial1.print(mz); Serial1.println();
 
-            myFile.print(ax); myFile.print(",");
-            myFile.print(ay); myFile.print(",");
-            myFile.print(az); myFile.print(",");
-            myFile.print(gx); myFile.print(",");
-            myFile.print(gy); myFile.print(",");
-            myFile.print(gz); myFile.print(",");
-            myFile.print(mx); myFile.print(",");
-            myFile.print(my); myFile.print(",");
-            myFile.print(mz); myFile.println();
+                myFile.print(ax); myFile.print(",");
+                myFile.print(ay); myFile.print(",");
+                myFile.print(az); myFile.print(",");
+                myFile.print(gx); myFile.print(",");
+                myFile.print(gy); myFile.print(",");
+                myFile.print(gz); myFile.print(",");
+                myFile.print(mx); myFile.print(",");
+                myFile.print(my); myFile.print(",");
+                myFile.print(mz); myFile.println();
+            chMtxUnlock(&printMutex);
         }
         chThdSleepMilliseconds(IMU_PRINT_SLEEP);
     }
@@ -151,12 +154,12 @@ static THD_FUNCTION(gpsPrintThd, arg) {
         */
         if (GPS.isAvailable) {
             chMtxLock(&gpsMutex);
-            lat = GPS.lat; lng = GPS.lng; hdop = GPS.hdop;
-            alt = GPS.alt; speed = GPS.speed; course = GPS.course;
-            gpsTime = GPS.time; isSpeedUpd = GPS.isSpeedUpd;
-            isCourseUpd = GPS.isCourseUpd; isTimeUpd = GPS.isTimeUpd;
-            isAltUpd = GPS.isAltUpd; isHdopUpd = GPS.isHdopUpd;
-            GPS.isAvailable = false;
+                lat = GPS.lat; lng = GPS.lng; hdop = GPS.hdop;
+                alt = GPS.alt; speed = GPS.speed; course = GPS.course;
+                gpsTime = GPS.time; isSpeedUpd = GPS.isSpeedUpd;
+                isCourseUpd = GPS.isCourseUpd; isTimeUpd = GPS.isTimeUpd;
+                isAltUpd = GPS.isAltUpd; isHdopUpd = GPS.isHdopUpd;
+                GPS.isAvailable = false;
             chMtxUnlock(&gpsMutex);
             /*
             buf[0] = 2;
@@ -190,21 +193,23 @@ static THD_FUNCTION(gpsPrintThd, arg) {
                 myFile.print(',');
             }
             */
-            Serial1.print(gpsTime); Serial1.print(",");
-            Serial1.print(lat); Serial1.print(",");
-            Serial1.print(lng); Serial1.print(",");
-            Serial1.print(hdop); Serial1.print(",");
-            Serial1.print(alt); Serial1.print(",");
-            Serial1.print(speed); Serial1.print(",");
-            Serial1.print(course); Serial1.println();
+            chMtxLock(&printMutex);
+                Serial1.print(gpsTime); Serial1.print(",");
+                Serial1.print(lat); Serial1.print(",");
+                Serial1.print(lng); Serial1.print(",");
+                Serial1.print(hdop); Serial1.print(",");
+                Serial1.print(alt); Serial1.print(",");
+                Serial1.print(speed); Serial1.print(",");
+                Serial1.print(course); Serial1.println();
 
-            myFile.print(gpsTime); myFile.print(",");
-            myFile.print(lat); myFile.print(",");
-            myFile.print(lng); myFile.print(",");
-            myFile.print(hdop); myFile.print(",");
-            myFile.print(alt); myFile.print(",");
-            myFile.print(speed); myFile.print(",");
-            myFile.print(course); myFile.println();
+                myFile.print(gpsTime); myFile.print(",");
+                myFile.print(lat); myFile.print(",");
+                myFile.print(lng); myFile.print(",");
+                myFile.print(hdop); myFile.print(",");
+                myFile.print(alt); myFile.print(",");
+                myFile.print(speed); myFile.print(",");
+                myFile.print(course); myFile.println();
+            chMtxUnlock(&printMutex);
         }
         chThdSleepMilliseconds(GPS_PRINT_SLEEP);
     }
@@ -229,8 +234,8 @@ static THD_FUNCTION(baroPrintThd, arg) {
         */
         if (baro.isAvailable) {
             chMtxLock(&baroMutex);
-            temp = baro.temp ; pressure = baro.pressure;
-            baro.isAvailable = false;
+                temp = baro.temp ; pressure = baro.pressure;
+                baro.isAvailable = false;
             chMtxUnlock(&baroMutex);
             /*
             buf[0] = 3;
@@ -252,11 +257,13 @@ static THD_FUNCTION(baroPrintThd, arg) {
                 myFile.print(',');
             }
             */
-            Serial1.print(temp); Serial1.print(",");
-            Serial1.print(pressure); Serial1.println();
+            chMtxLock(&printMutex);
+                Serial1.print(temp); Serial1.print(",");
+                Serial1.print(pressure); Serial1.println();
 
-            myFile.print(temp); myFile.print(",");
-            myFile.print(pressure); myFile.println();
+                myFile.print(temp); myFile.print(",");
+                myFile.print(pressure); myFile.println();
+            chMtxUnlock(&printMutex);
         }
         chThdSleepMilliseconds(BARO_PRINT_SLEEP);
     }
