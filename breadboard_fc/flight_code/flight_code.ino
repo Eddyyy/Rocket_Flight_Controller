@@ -71,7 +71,7 @@ static THD_FUNCTION(imuPrintThd, arg) {
     systime_t now = 0;
     while (true) {
         while (pause) {
-            myFile.close();
+            imuFile.close();
             chThdSleepMilliseconds(13);
         }
         /*
@@ -92,13 +92,6 @@ static THD_FUNCTION(imuPrintThd, arg) {
             buf[1] = ax; buf[2] = ay; buf[3] = az;
             buf[4] = gx; buf[5] = gy; buf[5] = gz;
             buf[6] = mx; buf[7] = my; buf[9] = mz;
-            */
-            now = ST2MS(chVTGetSystemTime());
-            Serial1.print(now);
-            Serial1.print(",IMU,");
-            myFile.print(now);
-            myFile.print(",IMU,");
-            /*
             for (int i = 1; i < 10; i++) {
                 Serial1.print(buf[i]);
                 Serial1.print(',');
@@ -106,7 +99,9 @@ static THD_FUNCTION(imuPrintThd, arg) {
                 myFile.print(',');
             }
             */
+            now = ST2MS(chVTGetSystemTime());
             chMtxLock(&printMutex);
+                Serial1.print(now); Serial1.print(",IMU,");
                 Serial1.print(ax); Serial1.print(",");
                 Serial1.print(ay); Serial1.print(",");
                 Serial1.print(az); Serial1.print(",");
@@ -116,17 +111,18 @@ static THD_FUNCTION(imuPrintThd, arg) {
                 Serial1.print(mx); Serial1.print(",");
                 Serial1.print(my); Serial1.print(",");
                 Serial1.print(mz); Serial1.println();
-
-                myFile.print(ax); myFile.print(",");
-                myFile.print(ay); myFile.print(",");
-                myFile.print(az); myFile.print(",");
-                myFile.print(gx); myFile.print(",");
-                myFile.print(gy); myFile.print(",");
-                myFile.print(gz); myFile.print(",");
-                myFile.print(mx); myFile.print(",");
-                myFile.print(my); myFile.print(",");
-                myFile.print(mz); myFile.println();
             chMtxUnlock(&printMutex);
+            imuFile.print(now); imuFile.print(",IMU,");
+            imuFile.print(ax); imuFile.print(",");
+            imuFile.print(ay); imuFile.print(",");
+            imuFile.print(az); imuFile.print(",");
+            imuFile.print(gx); imuFile.print(",");
+            imuFile.print(gy); imuFile.print(",");
+            imuFile.print(gz); imuFile.print(",");
+            imuFile.print(mx); imuFile.print(",");
+            imuFile.print(my); imuFile.print(",");
+            imuFile.print(mz); imuFile.println();
+
         }
         chThdSleepMilliseconds(IMU_PRINT_SLEEP);
     }
@@ -144,7 +140,7 @@ static THD_FUNCTION(gpsPrintThd, arg) {
     systime_t now = 0;
     while (true) {
         while (pause) {
-            myFile.close();
+            gpsFile.close();
             chThdSleepMilliseconds(13);
         }
         /*
@@ -179,13 +175,6 @@ static THD_FUNCTION(gpsPrintThd, arg) {
             if (isCourseUpd) {
                 buf[7] = course;
             }
-            */
-            now = ST2MS(chVTGetSystemTime());
-            Serial1.print(now);
-            Serial1.print(",GPS,");
-            myFile.print(now);
-            myFile.print(",GPS,");
-            /*
             for (int i = 1; i < 8; i++) {
                 Serial1.print(buf[i]);
                 Serial1.print(',');
@@ -193,7 +182,9 @@ static THD_FUNCTION(gpsPrintThd, arg) {
                 myFile.print(',');
             }
             */
+            now = ST2MS(chVTGetSystemTime());
             chMtxLock(&printMutex);
+                Serial1.print(now); Serial1.print(",GPS,");
                 Serial1.print(gpsTime); Serial1.print(",");
                 Serial1.print(lat); Serial1.print(",");
                 Serial1.print(lng); Serial1.print(",");
@@ -201,15 +192,15 @@ static THD_FUNCTION(gpsPrintThd, arg) {
                 Serial1.print(alt); Serial1.print(",");
                 Serial1.print(speed); Serial1.print(",");
                 Serial1.print(course); Serial1.println();
-
-                myFile.print(gpsTime); myFile.print(",");
-                myFile.print(lat); myFile.print(",");
-                myFile.print(lng); myFile.print(",");
-                myFile.print(hdop); myFile.print(",");
-                myFile.print(alt); myFile.print(",");
-                myFile.print(speed); myFile.print(",");
-                myFile.print(course); myFile.println();
             chMtxUnlock(&printMutex);
+            gpsFile.print(now); gpsFile.print(",GPS,");
+            gpsFile.print(gpsTime); gpsFile.print(",");
+            gpsFile.print(lat); gpsFile.print(",");
+            gpsFile.print(lng); gpsFile.print(",");
+            gpsFile.print(hdop); gpsFile.print(",");
+            gpsFile.print(alt); gpsFile.print(",");
+            gpsFile.print(speed); gpsFile.print(",");
+            gpsFile.print(course); gpsFile.println();
         }
         chThdSleepMilliseconds(GPS_PRINT_SLEEP);
     }
@@ -224,7 +215,7 @@ static THD_FUNCTION(baroPrintThd, arg) {
     systime_t now = 0;
     while (true) {
         while (pause) {
-            myFile.close();
+            baroFile.close();
             chThdSleepMilliseconds(13);
         }
         /*
@@ -240,16 +231,6 @@ static THD_FUNCTION(baroPrintThd, arg) {
             /*
             buf[0] = 3;
             buf[1] = temp; buf[2] = pressure;
-            */
-            now = ST2MS(chVTGetSystemTime());
-            Serial1.print(now);
-            Serial1.print(",Baro,");
-            if (!myFile) {
-                    pause = true;
-            }
-            myFile.print(now);
-            myFile.print(",Baro,");
-            /*
             for (int i = 1; i < 3; i++) {
                 Serial1.print(buf[i]);
                 Serial1.print(',');
@@ -257,13 +238,15 @@ static THD_FUNCTION(baroPrintThd, arg) {
                 myFile.print(',');
             }
             */
+            now = ST2MS(chVTGetSystemTime());
             chMtxLock(&printMutex);
+                Serial1.print(now); Serial1.print(",Baro,");
                 Serial1.print(temp); Serial1.print(",");
                 Serial1.print(pressure); Serial1.println();
-
-                myFile.print(temp); myFile.print(",");
-                myFile.print(pressure); myFile.println();
             chMtxUnlock(&printMutex);
+            baroFile.print(now); baroFile.print(",Baro,");
+            baroFile.print(temp); baroFile.print(",");
+            baroFile.print(pressure); baroFile.println();
         }
         chThdSleepMilliseconds(BARO_PRINT_SLEEP);
     }
@@ -478,8 +461,10 @@ void loop() {
                 break;
             case 'g':
                 pause = false;
-                myFile = SD.open("data.txt", FILE_WRITE);
-                if (!myFile) {
+                imuFile = SD.open("imu.txt", FILE_WRITE);
+                gpsFile = SD.open("gps.txt", FILE_WRITE);
+                baroFile = SD.open("baro.txt", FILE_WRITE);
+                if (!imuFile || !gpsFile || !baroFile) {
                     pause = true;
                 }
                 break;
