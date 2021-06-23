@@ -26,7 +26,9 @@
 #define GPS_BAUD 9600
 #define RF_BAUD 57600
 
-File myFile;
+File imuFile;
+File gpsFile;
+File baroFile;
 SdFat SD;
 
 typedef struct imuReadings {
